@@ -47,7 +47,7 @@ bootstrap:
         - createdb
 
 postgresql:
-  listen: 127.0.0.1,10.7.3.20:5432
+  listen: 127.0.0.1,{{ host1_ip }}:5432
   connect_address: {{ host1_ip }}:5432
   data_dir: /pgdata/{{ pg_major_version }}/data
   config_dir: /pgdata/{{ pg_major_version }}/data
