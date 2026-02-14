@@ -1,11 +1,10 @@
 ---
-# Load project variables from repository root
-project_vars_file: "{{ playbook_dir }}/../vars.yml"
-
-# ESXi connection (set via env/extra-vars/Ansible Vault)
-esxi_hostname: "192.168.1.83"
+# ESXi connection
+# hostname and username are expected from environment (with sane defaults)
+esxi_hostname: "esxi"
 esxi_username: "root"
-esxi_password: "{{ lookup('env', 'ESXI_PASSWORD') | default('', true) }}"
+# password is stored in Vault at cubbyhole/secret
+esxi_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=cubbyhole/secret:esxi_pass') }}"
 esxi_validate_certs: false
 esxi_datacenter: "ha-datacenter"
 esxi_datastore: "datastore1"
@@ -22,10 +21,10 @@ vm_disk_type: thin
 
 # Bootstrap SSH
 bootstrap_user: aleksei
-bootstrap_password: "{{ aleksei_user_pass }}"
+bootstrap_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=cubbyhole/secret:aleksei_user_pass') }}"
 ansible_user: aleksei
-ansible_password: "{{ aleksei_user_pass }}"
-ansible_become_password: "{{ aleksei_user_pass }}"
+ansible_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=cubbyhole/secret:aleksei_user_pass') }}"
+ansible_become_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=cubbyhole/secret:aleksei_user_pass') }}"
 
 # DNS server
 dnsmasq_host: "192.168.1.146"

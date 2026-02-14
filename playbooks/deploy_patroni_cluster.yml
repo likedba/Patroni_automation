@@ -7,6 +7,10 @@
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
 
+    - name: Include shared settings
+      include_vars:
+        file: "{{ playbook_dir }}/../group_vars/all/main.yml"
+
     - name: Validate required variables
       assert:
         that:
@@ -38,6 +42,9 @@
     - name: Include vars.yml
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
+    - name: Include shared settings
+      include_vars:
+        file: "{{ playbook_dir }}/../group_vars/all/main.yml"
     - name: Recreate VMs on ESXi
       include_role:
         name: vm_esxi_recreate
