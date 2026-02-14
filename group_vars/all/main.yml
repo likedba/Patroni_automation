@@ -1,0 +1,35 @@
+---
+# Load project variables from repository root
+project_vars_file: "{{ playbook_dir }}/../vars.yml"
+
+# ESXi connection (set via env/extra-vars/Ansible Vault)
+esxi_hostname: "192.168.1.83"
+esxi_username: "root"
+esxi_password: "{{ lookup('env', 'ESXI_PASSWORD') | default('', true) }}"
+esxi_validate_certs: false
+esxi_datacenter: "ha-datacenter"
+esxi_datastore: "datastore1"
+esxi_network_name: "VM Network"
+esxi_folder: "/ha-datacenter/vm"
+esxi_ubuntu_iso_path: "[datastore1] iso/ubuntu-24.04.1-live-server-amd64.iso"
+esxi_guest_id: "ubuntu64Guest"
+
+# VM parameters
+vm_hardware_version: 21
+vm_guest_memory_mb: "{{ ram | int * 1024 }}"
+vm_guest_cpu: "{{ cpu | int }}"
+vm_disk_type: thin
+
+# Bootstrap SSH
+bootstrap_user: aleksei
+bootstrap_password: "{{ aleksei_user_pass }}"
+ansible_user: aleksei
+ansible_password: "{{ aleksei_user_pass }}"
+ansible_become_password: "{{ aleksei_user_pass }}"
+
+# DNS server
+dnsmasq_host: "192.168.1.146"
+
+# Patroni/etcd
+etcd_service_enabled: true
+patroni_service_enabled: false
