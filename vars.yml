@@ -27,7 +27,7 @@ pg_major_version: 15
 # Database objects
 app_db_name: "{{ project_name }}"
 app_schema_name: "{{ project_name }}"
-app_user: "{{ project_name }}"
+app_user_name: "{{ project_name }}"
 
 # PostgreSQL settings (calculated parameters)
 # RAM in MB for calculations
@@ -36,30 +36,30 @@ ram_mb: "{{ ram * 1024 }}"
 # shared_buffers
 shared_buffers: >-
   {% if ram < 4 -%}
-  {{ (ram_mb / 4) | int }}MB
+  {{ (ram_mb / 4) | int }} MB
   {%- else -%}
-  {{ (ram / 4) | int }}GB
+  {{ (ram / 4) | int }} GB
   {%- endif %}
 
 # work_mem
-work_mem: "{% if ram < 64 %}32MB{% else %}64MB{% endif %}"
+work_mem: "{% if ram < 64 %}32 MB{% else %}64 MB{% endif %}"
 
 # maintenance_work_mem
 maintenance_work_mem: >-
   {% if ram < 32 -%}
-  320MB
+  320 MB
   {%- elif ram >= 32 and ram < 64 -%}
-  420MB
+  420 MB
   {%- else -%}
-  640MB
+  640 MB
   {%- endif %}
 
 # effective_cache_size
 effective_cache_size: >-
   {% if ram < 4 -%}
-  {{ (ram_mb * 0.7) | round(0) | int }}MB
+  {{ (ram_mb * 0.7) | round(0) | int }} MB
   {%- else -%}
-  {{ (ram * 0.7) | round(0) | int }}GB
+  {{ (ram * 0.7) | round(0) | int }} GB
   {%- endif %}
 
 # Other PostgreSQL parameters
@@ -67,40 +67,47 @@ cpu_half: "{{ ((cpu + 1) / 2) | int }}"
 archive_command: "/bin/true"
 extensions: "pg_stat_statements"
 
-# IP addresses for pg_hba.conf
-dba1_ip: ""
-dba2_ip: ""
-dba3_ip: ""
-dba4_ip: ""
-app1_ip: ""
-app2_ip: ""
-app3_ip: ""
-app4_ip: ""
-app5_ip: ""
-app6_ip: ""
+# PG_HBA
+#ldap_hba: "- host {{ app_db_name }} +ldap_users 0.0.0.0/0  ldap ldapscheme=ldaps ldapport=636 ldaptls=0 ldapserver=e-business.moscow.alfaintra.net ldapprefix="e-business\""
+dba1_hba: "- host all all 192.168.58/32 scram-sha-256"
+#dba2_hba: "- host all all ??????????/32 scram-sha-256"
+#dba3_hba: "- host all all ??????????/32 scram-sha-256"
+#dba4_hba: "- host all all ??????????/32 scram-sha-256"
+app1_hba: "- host {{ app_db_name }} {{ app_user_name }} 192.168.143/32 scram-sha-256"
+app2_hba: "- host {{ app_db_name }} {{ app_user_name }} 192.168.144/32 scram-sha-256"
+#app3_hba: "- host {{ app_db_name }} {{ app_user_name }} ???????????/32 scram-sha-256"
+#app4_hba: "- host {{ app_db_name }} {{ app_user_name }} ???????????/32 scram-sha-256"
+#app5_hba: "- host {{ app_db_name }} {{ app_user_name }} ???????????/32 scram-sha-256"
+#app6_hba: "- host {{ app_db_name }} {{ app_user_name }} ???????????/32 scram-sha-256"
 
 # Variables to be loaded from Vault
 # They are defined here as empty but will be populated when using the vault lookup plugin
 vault_secrets:
-  zabbix_monitor_password: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}/postgres:zbx_monitor_password') }}"
-  app_user_password: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}/postgres:app_user_password') }}"
-  postgres_user_password: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}/postgres:postgres_user_password') }}"
-  ppem_agent_user_password: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}/postgres:ppem_agent_user_password') }}"
-  otel_user_password: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}/postgres:otel_user_password') }}"
-  backup_user_password: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}/postgres:backup_user_password') }}"
-  postgres_exporter_user_password: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}/postgres:postgres_exporter_user_password') }}"
-  zbx_monitor_user_password: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}/postgres:zbx_monitor_user_password') }}"
-  auditor_user_password: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}/postgres:auditor_user_password') }}"
-  ppem_api_key: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}/postgres:ppem_api_key') }}"
-
+  zabbix_monitor_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:zbx_monitor_pass') }}"
+  app_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:app_user_pass') }}"
+  postgres_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:postgres_user_pass') }}"
+  ppem_agent_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:ppem_agent_user_pass') }}"
+  otel_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:otel_user_pass') }}"
+  backup_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:backup_user_pass') }}"
+  postgres_exporter_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:postgres_exporter_user_pass') }}"
+  zbx_monitor_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:zbx_monitor_user_pass') }}"
+  auditor_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:auditor_user_pass') }}"
+  ppem_api_key: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:ppem_api_key') }}"
+  admin_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:admin_user_pass') }}"
+  replicator_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:replicator_user_pass') }}"
+  rewind_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:rewind_user_pass') }}"
+  
 # For convenience, separate variables can be created
-zbx_monitor_password: "{{ vault_secrets.zabbix_monitor_password }}"
-app_user_pass: "{{ vault_secrets.app_user_password }}"
-postgres_user_pass: "{{ vault_secrets.postgres_user_password }}"
-ppem_agent_user_pass: "{{ vault_secrets.ppem_agent_user_password }}"
-otel_user_pass: "{{ vault_secrets.otel_user_password }}"
-backup_user_pass: "{{ vault_secrets.backup_user_password }}"
-postgres_exporter_user_pass: "{{ vault_secrets.postgres_exporter_user_password }}"
-zbx_monitor_user_pass: "{{ vault_secrets.zbx_monitor_user_password }}"
-auditor_user_pass: "{{ vault_secrets.auditor_user_password }}"
+zbx_monitor_pass: "{{ vault_secrets.zabbix_monitor_pass }}"
+app_user_pass: "{{ vault_secrets.app_user_pass }}"
+postgres_user_pass: "{{ vault_secrets.postgres_user_pass }}"
+ppem_agent_user_pass: "{{ vault_secrets.ppem_agent_user_pass }}"
+otel_user_pass: "{{ vault_secrets.otel_user_pass }}"
+backup_user_pass: "{{ vault_secrets.backup_user_pass }}"
+postgres_exporter_user_pass: "{{ vault_secrets.postgres_exporter_user_pass }}"
+zbx_monitor_user_pass: "{{ vault_secrets.zbx_monitor_user_pass }}"
+auditor_user_pass: "{{ vault_secrets.auditor_user_pass }}"
 ppem_api_key: "{{ vault_secrets.ppem_api_key }}"
+admin_user_pass: "{{ vault_secrets.admin_user_pass }}"
+replicator_user_pass: "{{ vault_secrets.replicator_user_pass }}"
+rewind_user_pass: "{{ vault_secrets.rewind_user_pass }}"
