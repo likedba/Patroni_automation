@@ -1,8 +1,8 @@
 ---
 # ESXi connection
 # hostname and username are expected from environment (with sane defaults)
-esxi_hostname: "{{ lookup('env', 'esxi_hostname') | default('esxi', true) }}"
-esxi_username: "{{ lookup('env', 'esxi_username') | default('root', true) }}"
+esxi_hostname: "esxi"
+esxi_username: "root"
 # password is stored in Vault at cubbyhole/secret
 esxi_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=cubbyhole/secret:esxi_pass') }}"
 esxi_validate_certs: false
