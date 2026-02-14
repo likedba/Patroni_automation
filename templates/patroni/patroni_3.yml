@@ -1,15 +1,15 @@
 scope: {{ project_name }}_cluster
 namespace: /service/
-name: {{ host3_name }}
+name: {{ patroni3_hostname }}
 log:
   dir: /pgdata/patroni
   level: INFO
 restapi:
-  listen: {{ host3_ip }}:8008
-  connect_address: {{ host3_ip }}:8008
+  listen: {{ patroni3_ip }}:8008
+  connect_address: {{ patroni3_ip }}:8008
 
 etcd3:
-  hosts: {{ host1_ip }}:2379, {{ host2_ip }}:2379, {{ host3_ip }}:2379
+  hosts: {{ patroni1_ip }}:2379, {{ patroni2_ip }}:2379, {{ patroni3_ip }}:2379
 
 bootstrap:
   dcs:
@@ -31,24 +31,24 @@ bootstrap:
     - local replication all trust
     - host replication all 127.0.0.1/32 trust
     - host replication replicator 127.0.0.1/32 scram-sha-256
-    - host replication replicator {{ host1_ip }}/32 scram-sha-256
-    - host replication replicator {{ host2_ip }}/32 scram-sha-256
-    - host replication replicator {{ host3_ip }}/32 scram-sha-256
-    - host all all {{ host1_ip }}/32 scram-sha-256
-    - host all all {{ host2_ip }}/32 scram-sha-256
-    - host all all {{ host3_ip }}/32 scram-sha-256
+    - host replication replicator {{ patroni1_ip }}/32 scram-sha-256
+    - host replication replicator {{ patroni2_ip }}/32 scram-sha-256
+    - host replication replicator {{ patroni3_ip }}/32 scram-sha-256
+    - host all all {{ patroni1_ip }}/32 scram-sha-256
+    - host all all {{ patroni2_ip }}/32 scram-sha-256
+    - host all all {{ patroni3_ip }}/32 scram-sha-256
     - host all all 0.0.0.0/0 scram-sha-256
 
   users:
     admin:
-      password: admin
+      password: {{ admin_user_pass }}
       options:
         - createrole
         - createdb
 
 postgresql:
-  listen: 127.0.0.1,{{ host3_ip }}:5432
-  connect_address: {{ host3_ip }}:5432
+  listen: 127.0.0.1,{{ patroni3_ip }}:5432
+  connect_address: {{ patroni3_ip }}:5432
   data_dir: /pgdata/{{ pg_major_version }}/data
   config_dir: /pgdata/{{ pg_major_version }}/data
   bin_dir: /usr/lib/postgresql{{ pg_major_version }}/bin
@@ -57,13 +57,13 @@ postgresql:
   authentication:
     replication:
       username: replicator
-      password: replicator
+      password: {{ replicator_user_pass }}
     superuser:
       username: postgres
-      password: postgres
+      password: {{ postgres_user_pass }}
     rewind:
       username: rewind
-      password: rewind
+      password: {{ rewind_user_pass }}
 
 tags:
   nofailover: false
