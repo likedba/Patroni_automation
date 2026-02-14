@@ -1,0 +1,99 @@
+---
+- name: Load project variables
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Include vars.yml
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Include shared settings
+      include_vars:
+        file: "{{ playbook_dir }}/../group_vars/all/main.yml"
+
+    - name: Validate required variables
+      assert:
+        that:
+          - patroni1_hostname is defined
+          - patroni2_hostname is defined
+          - patroni3_hostname is defined
+          - patroni1_ip is defined
+          - patroni2_ip is defined
+          - patroni3_ip is defined
+          - cpu is defined
+          - ram is defined
+          - disk is defined
+          - pg_major_version is defined
+
+    - name: Build dynamic patroni_nodes inventory from vars.yml
+      add_host:
+        name: "{{ item.hostname }}.{{ domain }}"
+        ansible_host: "{{ item.ip }}"
+        groups: patroni_nodes
+      loop:
+        - { hostname: "{{ patroni1_hostname }}", ip: "{{ patroni1_ip }}" }
+        - { hostname: "{{ patroni2_hostname }}", ip: "{{ patroni2_ip }}" }
+        - { hostname: "{{ patroni3_hostname }}", ip: "{{ patroni3_ip }}" }
+
+- name: Recreate Patroni VMs on ESXi host
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Include vars.yml
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+    - name: Include shared settings
+      include_vars:
+        file: "{{ playbook_dir }}/../group_vars/all/main.yml"
+    - name: Recreate VMs on ESXi
+      include_role:
+        name: vm_esxi_recreate
+
+- name: Bootstrap and configure patroni hosts
+  hosts: patroni_nodes
+  gather_facts: true
+  become: true
+  pre_tasks:
+    - name: Include vars.yml
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+  roles:
+    - role: os_bootstrap
+    - role: patroni_prereqs
+    - role: etcd_config
+    - role: patroni_config
+
+- name: Update DNS records for Patroni hosts
+  hosts: dns
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Include vars.yml
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+    - name: Apply DNS entries
+      include_role:
+        name: dnsmasq_patroni_records
+
+- name: Start services and run cluster checks
+  hosts: patroni_nodes
+  gather_facts: false
+  become: true
+  serial: 3
+  pre_tasks:
+    - name: Include vars.yml
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+  roles:
+    - role: cluster_health_checks
+
+- name: Apply DB objects on current primary node
+  hosts: patroni_nodes
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Include vars.yml
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+  roles:
+    - role: db_objects_apply
