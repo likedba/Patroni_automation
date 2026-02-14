@@ -1,10 +1,10 @@
 ---
 # ESXi connection
 # hostname and username are expected from environment (with sane defaults)
-esxi_hostname: "esxi"
-esxi_username: "root"
+esxi_hostname: "{{ lookup('env', 'esxi_hostname') | default('esxi', true) }}"
+esxi_username: "{{ lookup('env', 'esxi_username') | default('root', true) }}"
 # password is stored in Vault at cubbyhole/secret
-esxi_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=cubbyhole/secret:esxi_pass') }}"
+esxi_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=esxi_pass cubbyhole/secret') | trim }}"
 esxi_validate_certs: false
 esxi_datacenter: "ha-datacenter"
 esxi_datastore: "datastore1"
@@ -21,10 +21,10 @@ vm_disk_type: thin
 
 # Bootstrap SSH
 bootstrap_user: aleksei
-bootstrap_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=cubbyhole/secret:aleksei_user_pass') }}"
+bootstrap_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_user_pass cubbyhole/secret') | trim }}"
 ansible_user: aleksei
-ansible_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=cubbyhole/secret:aleksei_user_pass') }}"
-ansible_become_password: "{{ lookup('community.hashi_vault.hashi_vault', 'secret=cubbyhole/secret:aleksei_user_pass') }}"
+ansible_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_user_pass cubbyhole/secret') | trim }}"
+ansible_become_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_user_pass cubbyhole/secret') | trim }}"
 
 # DNS server
 dnsmasq_host: "192.168.1.146"

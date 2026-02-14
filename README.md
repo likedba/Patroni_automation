@@ -18,7 +18,8 @@ The playbook `playbooks/deploy_patroni_cluster.yml` automates:
 - Ubuntu ISO uploaded to datastore path configured by `esxi_ubuntu_iso_path`.
 - Unattended Ubuntu installation method available (e.g. autoinstall seed).
 - Vault connectivity for secrets referenced in `vars.yml`.
-- Vault secrets are read from `cubbyhole/secret` using `VAULT_ADDR` and `VAULT_TOKEN` from the shell environment.
+- The control node needs `vault` CLI installed and authenticated.
+- Vault secrets are read from `cubbyhole/secret` via `vault` CLI (`vault kv get -field=...`) using `VAULT_ADDR` and `VAULT_TOKEN` from the shell environment.
 - Patroni inventory is built dynamically from `vars.yml` (`patroni*_hostname`, `patroni*_ip`) so no fixed Patroni IPs are stored in `inventories/production/hosts.yml`.
 
 ## Run
