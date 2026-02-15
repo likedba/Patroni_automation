@@ -1,0 +1,24 @@
+---
+- name: Get config file information
+  stat:
+    path: /etc/dnsmasq.conf
+  register: dnsmasq_config
+
+- name: Remove old patroni entries
+  lineinfile:
+    path: /etc/dnsmasq.conf
+    regexp: '.*({{ patroni1_hostname }}|{{ patroni2_hostname }}|{{ patroni3_hostname }}|{{ patroni1_ip }}|{{ patroni2_ip }}|{{ patroni3_ip }}).*'
+    state: absent
+  when: dnsmasq_config.stat.exists
+  notify: restart dnsmasq
+
+- name: Add new patroni entries
+  lineinfile:
+    path: /etc/dnsmasq.conf
+    line: "address=/{{ item.name }}.infra.local/{{ item.ip }}"
+    insertbefore: "^# External DNS"
+  loop:
+    - { name: "{{ patroni1_hostname }}", ip: "{{ patroni1_ip }}" }
+    - { name: "{{ patroni2_hostname }}", ip: "{{ patroni2_ip }}" }
+    - { name: "{{ patroni3_hostname }}", ip: "{{ patroni3_ip }}" }
+  notify: restart dnsmasq

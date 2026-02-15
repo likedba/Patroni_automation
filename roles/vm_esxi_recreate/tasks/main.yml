@@ -1,0 +1,97 @@
+---
+- name: Build patroni VM matrix
+  set_fact:
+    patroni_vm_matrix:
+      - name: "{{ patroni1_hostname }}"
+        ip: "{{ patroni1_ip }}"
+        mac: "{{ patroni1_mac | default('') }}"
+      - name: "{{ patroni2_hostname }}"
+        ip: "{{ patroni2_ip }}"
+        mac: "{{ patroni2_mac | default('') }}"
+      - name: "{{ patroni3_hostname }}"
+        ip: "{{ patroni3_ip }}"
+        mac: "{{ patroni3_mac | default('') }}"
+
+- name: Remove old Patroni VMs before recreation
+  community.vmware.vmware_guest:
+    hostname: "{{ esxi_hostname }}"
+    username: "{{ esxi_username }}"
+    password: "{{ esxi_password }}"
+    validate_certs: "{{ esxi_validate_certs }}"
+    datacenter: "{{ esxi_datacenter }}"
+    folder: "{{ esxi_folder }}"
+    name: "{{ item.name }}"
+    state: absent
+    force: true
+  loop: "{{ patroni_vm_matrix }}"
+  delegate_to: localhost
+
+- name: Recreate Patroni VMs with Ubuntu ISO attached
+  community.vmware.vmware_guest:
+    hostname: "{{ esxi_hostname }}"
+    username: "{{ esxi_username }}"
+    password: "{{ esxi_password }}"
+    validate_certs: "{{ esxi_validate_certs }}"
+    datacenter: "{{ esxi_datacenter }}"
+    folder: "{{ esxi_folder }}"
+    name: "{{ item.name }}"
+    state: poweredon
+    guest_id: "{{ esxi_guest_id }}"
+    hardware:
+      memory_mb: "{{ vm_guest_memory_mb }}"
+      num_cpus: "{{ vm_guest_cpu }}"
+      version: "{{ vm_hardware_version }}"
+      boot_firmware: "{{ esxi_boot_firmware }}"
+    disk:
+      - size_gb: "{{ disk | int }}"
+        type: "{{ vm_disk_type }}"
+        datastore: "{{ esxi_datastore }}"
+    cdrom: >-
+      {{
+        [
+          {
+              'controller_number': 0,
+              'unit_number': 0,
+              'controller_type': esxi_cdrom_controller_type,
+              'type': 'iso',
+              'iso_path': esxi_ubuntu_iso_path,
+              'state': 'present'
+          }
+        ]
+        +
+        (
+          [
+            {
+              'controller_number': 0,
+              'unit_number': 1,
+              'controller_type': esxi_cdrom_controller_type,
+              'type': 'iso',
+              'iso_path': esxi_autoinstall_seed_iso_path,
+              'state': 'present'
+            }
+          ]
+          if autoinstall_enabled | bool else []
+        )
+      }}
+    networks:
+      - name: "{{ esxi_network_name }}"
+        device_type: vmxnet3
+        mac: "{{ (item.mac | default('') | trim | length > 0) | ternary(item.mac, omit) }}"
+        type: static
+        ip: "{{ item.ip }}"
+        netmask: "255.255.255.0"
+        gateway: "192.168.1.1"
+        dns_servers:
+          - "192.168.1.146"
+    wait_for_ip_address: false
+  loop: "{{ patroni_vm_matrix }}"
+  delegate_to: localhost
+
+- name: Wait for SSH on recreated Patroni hosts
+  wait_for:
+    host: "{{ item.ip }}"
+    port: 22
+    timeout: 3600
+    delay: 30
+  loop: "{{ patroni_vm_matrix }}"
+  delegate_to: localhost
