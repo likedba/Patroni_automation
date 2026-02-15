@@ -1,0 +1,26 @@
+---
+- name: Ensure bootstrap user exists
+  user:
+    name: "{{ bootstrap_user }}"
+    shell: /bin/bash
+    create_home: true
+    groups: sudo
+    append: true
+
+- name: Ensure sudo works without tty for bootstrap user
+  copy:
+    dest: "/etc/sudoers.d/90-{{ bootstrap_user }}"
+    content: "{{ bootstrap_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: '/usr/sbin/visudo -cf %s'
+
+- name: Update apt cache
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade Ubuntu packages
+  apt:
+    upgrade: dist
