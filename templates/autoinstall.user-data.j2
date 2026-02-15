@@ -1,12 +1,17 @@
 #cloud-config
 autoinstall:
   version: 1
+  interactive-sections: []
   locale: en_US.UTF-8
   keyboard:
     layout: us
   ssh:
     install-server: true
     allow-pw: true
+  apt:
+    geoip: false
+    fallback: offline-install
+  updates: none
   identity:
     hostname: {{ autoinstall_hostname | default('ubuntu-server') }}
     username: {{ bootstrap_user }}

@@ -51,6 +51,11 @@ ansible localhost -i localhost, -c local -e @vars.yml \
 
 It does not auto-create infrastructure/bootstrap secrets like `esxi_pass`, `aleksei_user_pass`, or `aleksei_password_hash`.
 
+### Autoinstall notes (Ubuntu 24.04.x)
+
+- If installer prompts `Continue with autoinstall? (yes|no)`, this is Ubuntu/subiquity behavior when kernel cmdline lacks `autoinstall`.
+- Seed config is tuned for restricted networks: `interactive-sections: []`, `updates: none`, and `apt.fallback: offline-install`.
+
 ## Notes
 
 - `etcd` service is enabled on boot.
