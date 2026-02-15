@@ -45,10 +45,17 @@ vm_guest_cpu: "{{ cpu | int }}"
 # Optional local/offline collection tarball path for community.vmware
 community_vmware_collection_tarball: ""
 
+# Cloud-init autoinstall seed ISO (CIDATA) uploaded to ESXi datastore
+# Build this ISO from templates/autoinstall.user-data.j2 and templates/autoinstall.meta-data.j2
+autoinstall_enabled: true
+esxi_autoinstall_seed_iso_path: "[datastore1] iso/autoinstall-seed.iso"
+# Password hash for autoinstall identity/users (SHA-512 crypt)
+autoinstall_password_hash: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_password_hash cubbyhole/secret') | trim }}"
+
 # =========================
 # Initial OS bootstrap access (fresh Ubuntu)
 # =========================
-bootstrap_connect_user: "ubuntu"
+bootstrap_connect_user: "{{ bootstrap_user }}"
 bootstrap_connect_password: "{{ aleksei_user_pass }}"
 bootstrap_connect_become_password: "{{ bootstrap_connect_password }}"
 

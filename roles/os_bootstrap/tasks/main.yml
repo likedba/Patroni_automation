@@ -4,7 +4,6 @@
     name: "{{ bootstrap_user }}"
     shell: /bin/bash
     create_home: true
-    password: "{{ bootstrap_password | password_hash('sha512') }}"
     groups: sudo
     append: true
 

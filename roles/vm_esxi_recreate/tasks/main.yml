@@ -45,12 +45,31 @@
       - size_gb: "{{ disk | int }}"
         type: "{{ vm_disk_type }}"
         datastore: "{{ esxi_datastore }}"
-    cdrom:
-      - controller_number: 0
-        unit_number: 0
-        type: iso
-        iso_path: "{{ esxi_ubuntu_iso_path }}"
-        state: present
+    cdrom: >-
+      {{
+        [
+          {
+            'controller_number': 0,
+            'unit_number': 0,
+            'type': 'iso',
+            'iso_path': esxi_ubuntu_iso_path,
+            'state': 'present'
+          }
+        ]
+        +
+        (
+          [
+            {
+              'controller_number': 0,
+              'unit_number': 1,
+              'type': 'iso',
+              'iso_path': esxi_autoinstall_seed_iso_path,
+              'state': 'present'
+            }
+          ]
+          if autoinstall_enabled | bool else []
+        )
+      }}
     networks:
       - name: "{{ esxi_network_name }}"
         device_type: vmxnet3

@@ -19,6 +19,7 @@ The playbook `playbooks/deploy_patroni_cluster.yml` automates:
 - Ubuntu ISO uploaded to datastore path configured by `esxi_ubuntu_iso_path`.
 - Ubuntu source is the live server ISO (no desktop UI by default).
 - Unattended Ubuntu installation method available (e.g. autoinstall seed).
+- For unattended install, attach a cloud-init seed ISO (`esxi_autoinstall_seed_iso_path`) built from `templates/autoinstall.user-data.j2` and `templates/autoinstall.meta-data.j2`.
 - Vault connectivity for secrets referenced in `vars.yml`.
 - The control node needs `vault` CLI installed and authenticated.
 - `community.vmware` collection is mandatory; if Galaxy is unreachable, provide local tarball path via `-e community_vmware_collection_tarball=/path/community-vmware-*.tar.gz`.
@@ -37,3 +38,5 @@ ansible-playbook playbooks/deploy_patroni_cluster.yml
 - `etcd` service is enabled on boot.
 - `patroni` service is **not** enabled on boot (starts from playbook only).
 - PostgreSQL data directory is `/pgdata/{{ pg_major_version }}/data`.
+
+- The autoinstall template creates `bootstrap_user` (default `aleksei`) with sudo access.
