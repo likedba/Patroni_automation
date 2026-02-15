@@ -23,15 +23,23 @@ The playbook `playbooks/deploy_patroni_cluster.yml` automates:
 - Vault connectivity for secrets referenced in `vars.yml`.
 - The control node needs `vault` CLI installed and authenticated.
 - `community.vmware` collection is mandatory; if Galaxy is unreachable, provide local tarball path via `-e community_vmware_collection_tarball=/path/community-vmware-*.tar.gz`.
-- Vault secrets are read from `cubbyhole/secret` via `vault` CLI (`vault kv get -field=...`) using `VAULT_ADDR` and `VAULT_TOKEN` from the shell environment.
+- Vault secrets are read from `secret/patroni_dpl` via `vault` CLI (`vault kv get -field=...`) using `VAULT_ADDR` and `VAULT_TOKEN` from the shell environment.
+- `aleksei_password_hash` must exist in Vault before run when autoinstall is enabled.
 - Patroni inventory is built dynamically from `vars.yml` (`patroni*_hostname`, `patroni*_ip`) so no fixed Patroni IPs are stored in `inventories/production/hosts.yml`.
 
 ## Run
 
 ```bash
 ansible-galaxy collection install -r collections/requirements.yml
+ansible-playbook playbooks/prepare_vault_secrets.yml
 ansible-playbook playbooks/deploy_patroni_cluster.yml
 ```
+
+`playbooks/prepare_vault_secrets.yml` auto-creates missing Vault fields (only for DB/Patroni users):
+- `admin_user_pass`, `replicator_user_pass`, `postgres_user_pass`, `rewind_user_pass`
+- `app_user_pass`, `backup_user_pass`, `postgres_exporter_user_pass`, `zbx_monitor_user_pass`, `otel_user_pass`, `ppem_agent_user_pass`, `auditor_user_pass`
+
+It does not auto-create infrastructure/bootstrap secrets like `esxi_pass`, `aleksei_user_pass`, or `aleksei_password_hash`.
 
 ## Notes
 
