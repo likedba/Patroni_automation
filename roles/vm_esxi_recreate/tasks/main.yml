@@ -55,6 +55,8 @@
               'controller_type': 'sata',
               'type': 'iso',
               'iso_path': esxi_ubuntu_iso_path,
+              'connected': true,
+              'start_connected': true,
               'state': 'present'
           }
         ]
@@ -67,6 +69,8 @@
               'controller_type': 'sata',
               'type': 'iso',
               'iso_path': esxi_autoinstall_seed_iso_path,
+              'connected': true,
+              'start_connected': true,
               'state': 'present'
             }
           ]

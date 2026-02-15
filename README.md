@@ -21,6 +21,7 @@ The playbook `playbooks/deploy_patroni_cluster.yml` automates:
 - VM firmware for new hosts is configurable via `esxi_boot_firmware` (`efi` by default).
 - Unattended Ubuntu installation method available (e.g. autoinstall seed).
 - For unattended install, attach a cloud-init seed ISO (`esxi_autoinstall_seed_iso_path`) built from `templates/autoinstall.user-data.j2` and `templates/autoinstall.meta-data.j2`.
+- Both CD/DVD devices are configured as `connected` and `start_connected` so VM boots from ISO instead of PXE.
 - Vault connectivity for secrets referenced in `vars.yml`.
 - The control node needs `vault` CLI installed and authenticated.
 - `community.vmware` collection is mandatory; if Galaxy is unreachable, provide local tarball path via `-e community_vmware_collection_tarball=/path/community-vmware-*.tar.gz`.
