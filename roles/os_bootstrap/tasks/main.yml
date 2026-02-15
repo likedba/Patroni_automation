@@ -1,0 +1,40 @@
+---
+- name: Detect available admin groups
+  shell: "getent group sudo >/dev/null 2>&1 && echo sudo || (getent group wheel >/dev/null 2>&1 && echo wheel || echo '')"
+  register: bootstrap_admin_group_detect
+  changed_when: false
+
+- name: Set bootstrap admin group
+  set_fact:
+    bootstrap_admin_group: "{{ (bootstrap_admin_group_detect.stdout | trim) if (bootstrap_admin_group_detect.stdout | trim | length > 0) else 'sudo' }}"
+
+- name: Ensure bootstrap admin group exists
+  group:
+    name: "{{ bootstrap_admin_group }}"
+    state: present
+
+- name: Ensure bootstrap user exists
+  user:
+    name: "{{ bootstrap_user }}"
+    shell: /bin/bash
+    create_home: true
+    groups: "{{ bootstrap_admin_group }}"
+    append: true
+
+- name: Ensure sudo works without tty for bootstrap user
+  copy:
+    dest: "/etc/sudoers.d/90-{{ bootstrap_user }}"
+    content: "{{ bootstrap_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: '/usr/sbin/visudo -cf %s'
+
+- name: Update apt cache
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade Ubuntu packages
+  apt:
+    upgrade: dist
