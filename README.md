@@ -36,6 +36,15 @@ ansible-playbook playbooks/prepare_vault_secrets.yml
 ansible-playbook playbooks/deploy_patroni_cluster.yml
 ```
 
+To render autoinstall seed files manually, include variables from `vars.yml` (so `autoinstall_password_hash` is available):
+
+```bash
+ansible localhost -i localhost, -c local -e @vars.yml \
+  -m template -a "src=templates/autoinstall.user-data.j2 dest=/tmp/user-data"
+ansible localhost -i localhost, -c local -e @vars.yml \
+  -m template -a "src=templates/autoinstall.meta-data.j2 dest=/tmp/meta-data"
+```
+
 `playbooks/prepare_vault_secrets.yml` auto-creates missing Vault fields (only for DB/Patroni users):
 - `admin_user_pass`, `replicator_user_pass`, `postgres_user_pass`, `rewind_user_pass`
 - `app_user_pass`, `backup_user_pass`, `postgres_exporter_user_pass`, `zbx_monitor_user_pass`, `otel_user_pass`, `ppem_agent_user_pass`, `auditor_user_pass`
