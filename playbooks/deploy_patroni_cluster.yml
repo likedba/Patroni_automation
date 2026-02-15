@@ -7,10 +7,6 @@
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
 
-    - name: Include shared settings
-      include_vars:
-        file: "{{ playbook_dir }}/../group_vars/all/main.yml"
-
     - name: Validate required variables
       assert:
         that:
@@ -24,11 +20,58 @@
           - ram is defined
           - disk is defined
           - pg_major_version is defined
+          - esxi_hostname is defined
+          - esxi_username is defined
+          - esxi_password is defined
+          - bootstrap_connect_user is defined
+          - bootstrap_connect_password is defined
 
-    - name: Build dynamic patroni_nodes inventory from vars.yml
+    - name: Check if community.vmware collection module is available
+      command: ansible-doc -t module community.vmware.vmware_guest
+      register: vmware_module_check
+      changed_when: false
+      failed_when: false
+
+    - name: Try to install community.vmware from local tarball if provided
+      command: ansible-galaxy collection install "{{ community_vmware_collection_tarball }}"
+      when:
+        - vmware_module_check.rc != 0
+        - community_vmware_collection_tarball | length > 0
+      register: install_from_tarball
+      changed_when: install_from_tarball.rc == 0
+      failed_when: false
+
+    - name: Try to install community.vmware from Galaxy as fallback
+      command: ansible-galaxy collection install community.vmware
+      when:
+        - vmware_module_check.rc != 0
+        - community_vmware_collection_tarball | length == 0
+      register: install_from_galaxy
+      changed_when: install_from_galaxy.rc == 0
+      failed_when: false
+
+    - name: Re-check community.vmware collection after install attempts
+      command: ansible-doc -t module community.vmware.vmware_guest
+      register: vmware_module_check_after
+      changed_when: false
+      failed_when: false
+
+    - name: Fail early if community.vmware is still unavailable
+      fail:
+        msg: >-
+          community.vmware collection is required but not available.
+          Install from offline tarball via variable community_vmware_collection_tarball
+          or ensure Galaxy DNS/network access and run:
+          ansible-galaxy collection install community.vmware
+      when: vmware_module_check_after.rc != 0
+
+    - name: Build dynamic patroni_nodes inventory from vars.yml (bootstrap access)
       add_host:
         name: "{{ item.hostname }}.{{ domain }}"
         ansible_host: "{{ item.ip }}"
+        ansible_user: "{{ bootstrap_connect_user }}"
+        ansible_password: "{{ bootstrap_connect_password }}"
+        ansible_become_password: "{{ bootstrap_connect_become_password }}"
         groups: patroni_nodes
       loop:
         - { hostname: "{{ patroni1_hostname }}", ip: "{{ patroni1_ip }}" }
@@ -42,14 +85,43 @@
     - name: Include vars.yml
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
-    - name: Include shared settings
-      include_vars:
-        file: "{{ playbook_dir }}/../group_vars/all/main.yml"
     - name: Recreate VMs on ESXi
       include_role:
         name: vm_esxi_recreate
 
-- name: Bootstrap and configure patroni hosts
+- name: Bootstrap Patroni hosts and ensure aleksei user exists
+  hosts: patroni_nodes
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Include vars.yml
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+  roles:
+    - role: os_bootstrap
+
+- name: Switch Patroni nodes to aleksei credentials after bootstrap
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Include vars.yml
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Rebuild patroni_nodes inventory with final aleksei access
+      add_host:
+        name: "{{ item.hostname }}.{{ domain }}"
+        ansible_host: "{{ item.ip }}"
+        ansible_user: "{{ bootstrap_user }}"
+        ansible_password: "{{ bootstrap_password }}"
+        ansible_become_password: "{{ bootstrap_password }}"
+        groups: patroni_nodes
+      loop:
+        - { hostname: "{{ patroni1_hostname }}", ip: "{{ patroni1_ip }}" }
+        - { hostname: "{{ patroni2_hostname }}", ip: "{{ patroni2_ip }}" }
+        - { hostname: "{{ patroni3_hostname }}", ip: "{{ patroni3_ip }}" }
+
+- name: Configure Patroni software stack on nodes
   hosts: patroni_nodes
   gather_facts: true
   become: true
@@ -58,7 +130,6 @@
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
   roles:
-    - role: os_bootstrap
     - role: patroni_prereqs
     - role: etcd_config
     - role: patroni_config

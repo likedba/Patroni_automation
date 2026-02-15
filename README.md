@@ -13,12 +13,15 @@ The playbook `playbooks/deploy_patroni_cluster.yml` automates:
 
 ## Prerequisites
 
+- All deployment variables are centralized in `vars.yml`.
 - Ansible control node with collections from `collections/requirements.yml`.
 - Direct access to ESXi host and datastore.
 - Ubuntu ISO uploaded to datastore path configured by `esxi_ubuntu_iso_path`.
+- Ubuntu source is the live server ISO (no desktop UI by default).
 - Unattended Ubuntu installation method available (e.g. autoinstall seed).
 - Vault connectivity for secrets referenced in `vars.yml`.
 - The control node needs `vault` CLI installed and authenticated.
+- `community.vmware` collection is mandatory; if Galaxy is unreachable, provide local tarball path via `-e community_vmware_collection_tarball=/path/community-vmware-*.tar.gz`.
 - Vault secrets are read from `cubbyhole/secret` via `vault` CLI (`vault kv get -field=...`) using `VAULT_ADDR` and `VAULT_TOKEN` from the shell environment.
 - Patroni inventory is built dynamically from `vars.yml` (`patroni*_hostname`, `patroni*_ip`) so no fixed Patroni IPs are stored in `inventories/production/hosts.yml`.
 

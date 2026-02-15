@@ -24,6 +24,37 @@ patroni3_fqdn: "{{ patroni3_hostname }}.{{ domain }}"
 # PostgreSQL version
 pg_major_version: 15
 
+
+# =========================
+# Infrastructure / ESXi
+# =========================
+esxi_hostname: "esxi"
+esxi_username: "root"
+esxi_validate_certs: false
+esxi_datacenter: "ha-datacenter"
+esxi_datastore: "datastore1"
+esxi_network_name: "VM Network"
+esxi_folder: "/ha-datacenter/vm"
+esxi_ubuntu_iso_path: "[datastore1] iso/ubuntu-24.04.1-live-server-amd64.iso"
+esxi_guest_id: "ubuntu64Guest"
+vm_hardware_version: 21
+vm_disk_type: thin
+
+# Optional local/offline collection tarball path for community.vmware
+community_vmware_collection_tarball: ""
+
+# =========================
+# Initial OS bootstrap access (fresh Ubuntu)
+# =========================
+bootstrap_connect_user: "ubuntu"
+bootstrap_connect_password: "{{ aleksei_user_pass }}"
+bootstrap_connect_become_password: "{{ bootstrap_connect_password }}"
+
+# Final automation user that must exist on Patroni nodes
+bootstrap_user: "aleksei"
+bootstrap_password: "{{ aleksei_user_pass }}"
+
+
 # Database objects
 app_db_name: "{{ project_name }}"
 app_schema_name: "{{ project_name }}"
@@ -115,3 +146,4 @@ replicator_user_pass: "{{ vault_secrets.replicator_user_pass }}"
 rewind_user_pass: "{{ vault_secrets.rewind_user_pass }}"
 aleksei_user_pass: "{{ vault_secrets.aleksei_user_pass }}"
 esxi_pass: "{{ vault_secrets.esxi_pass }}"
+esxi_password: "{{ vault_secrets.esxi_pass }}"
