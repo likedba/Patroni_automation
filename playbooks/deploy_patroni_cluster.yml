@@ -27,71 +27,14 @@
           - bootstrap_connect_password is defined
           - autoinstall_enabled is defined
 
-    - name: Validate autoinstall seed ISO path when enabled
+    - name: Validate autoinstall seed ISO settings when enabled
       assert:
         that:
           - esxi_autoinstall_seed_iso_path is defined
           - esxi_autoinstall_seed_iso_path | length > 0
-        fail_msg: "Autoinstall is enabled but seed ISO path is not defined in vars.yml"
-      when: autoinstall_enabled | bool
-
-    - name: Read existing aleksei password hash from Vault
-      command: vault kv get -field=aleksei_password_hash cubbyhole/secret
-      register: aleksei_password_hash_read
-      changed_when: false
-      failed_when: false
-      no_log: true
-      when: autoinstall_enabled | bool
-
-    - name: Read aleksei plain password from Vault when hash is absent
-      command: vault kv get -field=aleksei_user_pass cubbyhole/secret
-      register: aleksei_password_plain
-      changed_when: false
-      no_log: true
-      when:
-        - autoinstall_enabled | bool
-        - aleksei_password_hash_read.rc != 0
-
-    - name: Generate SHA-512 hash from aleksei password when hash is absent
-      command: "openssl passwd -6 {{ aleksei_password_plain.stdout | quote }}"
-      register: aleksei_password_hash_generated
-      changed_when: false
-      no_log: true
-      when:
-        - autoinstall_enabled | bool
-        - aleksei_password_hash_read.rc != 0
-
-    - name: Store generated aleksei password hash in Vault
-      command: "vault kv patch cubbyhole/secret aleksei_password_hash={{ aleksei_password_hash_generated.stdout | quote }}"
-      changed_when: true
-      no_log: true
-      when:
-        - autoinstall_enabled | bool
-        - aleksei_password_hash_read.rc != 0
-
-    - name: Set effective autoinstall password hash for current run
-      set_fact:
-        autoinstall_password_hash_effective: >-
-          {{
-            (aleksei_password_hash_read.stdout | trim)
-            if (aleksei_password_hash_read.rc == 0)
-            else (aleksei_password_hash_generated.stdout | trim)
-          }}
-        autoinstall_password_hash: >-
-          {{
-            (aleksei_password_hash_read.stdout | trim)
-            if (aleksei_password_hash_read.rc == 0)
-            else (aleksei_password_hash_generated.stdout | trim)
-          }}
-      no_log: true
-      when: autoinstall_enabled | bool
-
-    - name: Validate autoinstall password hash availability
-      assert:
-        that:
-          - autoinstall_password_hash_effective is defined
-          - autoinstall_password_hash_effective | length > 0
-        fail_msg: "Failed to obtain/create aleksei_password_hash in Vault"
+          - autoinstall_password_hash is defined
+          - autoinstall_password_hash | length > 0
+        fail_msg: "Autoinstall is enabled but seed ISO path/hash vars are not defined in vars.yml"
       when: autoinstall_enabled | bool
 
     - name: Check if community.vmware collection module is available
