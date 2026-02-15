@@ -4,13 +4,13 @@
     patroni_vm_matrix:
       - name: "{{ patroni1_hostname }}"
         ip: "{{ patroni1_ip }}"
-        mac: "00:0c:29:1e:d3:ea"
+        mac: "{{ patroni1_mac | default('') }}"
       - name: "{{ patroni2_hostname }}"
         ip: "{{ patroni2_ip }}"
-        mac: "00:0c:29:c4:a7:65"
+        mac: "{{ patroni2_mac | default('') }}"
       - name: "{{ patroni3_hostname }}"
         ip: "{{ patroni3_ip }}"
-        mac: "00:0c:29:6c:22:01"
+        mac: "{{ patroni3_mac | default('') }}"
 
 - name: Remove old Patroni VMs before recreation
   community.vmware.vmware_guest:
@@ -73,7 +73,7 @@
     networks:
       - name: "{{ esxi_network_name }}"
         device_type: vmxnet3
-        mac: "{{ item.mac }}"
+        mac: "{{ (item.mac | default('') | trim | length > 0) | ternary(item.mac, omit) }}"
         type: static
         ip: "{{ item.ip }}"
         netmask: "255.255.255.0"

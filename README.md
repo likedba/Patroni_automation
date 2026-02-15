@@ -26,6 +26,7 @@ The playbook `playbooks/deploy_patroni_cluster.yml` automates:
 - Vault secrets are read from `secret/patroni_dpl` via `vault` CLI (`vault kv get -field=...`) using `VAULT_ADDR` and `VAULT_TOKEN` from the shell environment.
 - `aleksei_password_hash` must exist in Vault before run when autoinstall is enabled.
 - Patroni inventory is built dynamically from `vars.yml` (`patroni*_hostname`, `patroni*_ip`) so no fixed Patroni IPs are stored in `inventories/production/hosts.yml`.
+- `patroni*_mac` in `vars.yml` is optional; leave it empty to let ESXi assign a valid MAC automatically.
 
 ## Run
 

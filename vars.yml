@@ -15,6 +15,10 @@ patroni3_hostname: "vmpatronidb-3"
 patroni1_ip: "192.168.1.135"
 patroni2_ip: "192.168.1.136"
 patroni3_ip: "192.168.1.137"
+# Leave empty to let ESXi auto-assign safe MAC addresses
+patroni1_mac: ""
+patroni2_mac: ""
+patroni3_mac: ""
 
 # Host FQDNs
 patroni1_fqdn: "{{ patroni1_hostname }}.{{ domain }}"
