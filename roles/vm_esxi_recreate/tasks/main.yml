@@ -42,11 +42,6 @@
       num_cpus: "{{ vm_guest_cpu }}"
       version: "{{ vm_hardware_version }}"
       boot_firmware: "{{ esxi_boot_firmware }}"
-    advanced_settings:
-      - key: sata0:0.startConnected
-        value: "TRUE"
-      - key: sata0:1.startConnected
-        value: "TRUE"
     disk:
       - size_gb: "{{ disk | int }}"
         type: "{{ vm_disk_type }}"
@@ -57,7 +52,7 @@
           {
               'controller_number': 0,
               'unit_number': 0,
-              'controller_type': 'sata',
+              'controller_type': esxi_cdrom_controller_type,
               'type': 'iso',
               'iso_path': esxi_ubuntu_iso_path,
               'state': 'present'
@@ -69,7 +64,7 @@
             {
               'controller_number': 0,
               'unit_number': 1,
-              'controller_type': 'sata',
+              'controller_type': esxi_cdrom_controller_type,
               'type': 'iso',
               'iso_path': esxi_autoinstall_seed_iso_path,
               'state': 'present'
