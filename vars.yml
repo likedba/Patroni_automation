@@ -39,7 +39,7 @@ esxi_datacenter: "ha-datacenter"
 esxi_datastore: "datastore1"
 esxi_network_name: "VM Network"
 esxi_folder: "/ha-datacenter/vm"
-esxi_ubuntu_iso_path: "[datastore1] iso/ubuntu-24.04.1-live-server-amd64.iso"
+esxi_ubuntu_iso_path: "[datastore1] iso/ubuntu-24.04.4-live-server-amd64.iso"
 esxi_guest_id: "ubuntu64Guest"
 vm_hardware_version: 21
 vm_disk_type: thin
