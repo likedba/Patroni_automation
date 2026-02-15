@@ -39,6 +39,8 @@ esxi_ubuntu_iso_path: "[datastore1] iso/ubuntu-24.04.1-live-server-amd64.iso"
 esxi_guest_id: "ubuntu64Guest"
 vm_hardware_version: 21
 vm_disk_type: thin
+vm_guest_memory_mb: "{{ ram | int * 1024 }}"
+vm_guest_cpu: "{{ cpu | int }}"
 
 # Optional local/offline collection tarball path for community.vmware
 community_vmware_collection_tarball: ""
