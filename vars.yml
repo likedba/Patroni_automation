@@ -50,7 +50,7 @@ community_vmware_collection_tarball: ""
 autoinstall_enabled: true
 esxi_autoinstall_seed_iso_path: "[datastore1] iso/autoinstall-seed.iso"
 # Password hash for autoinstall identity/users (SHA-512 crypt)
-autoinstall_password_hash: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_password_hash cubbyhole/secret') | trim }}"
+autoinstall_password_hash: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_password_hash cubbyhole/secret', errors='ignore') | default('', true) | trim }}"
 
 # =========================
 # Initial OS bootstrap access (fresh Ubuntu)

@@ -24,6 +24,7 @@ The playbook `playbooks/deploy_patroni_cluster.yml` automates:
 - The control node needs `vault` CLI installed and authenticated.
 - `community.vmware` collection is mandatory; if Galaxy is unreachable, provide local tarball path via `-e community_vmware_collection_tarball=/path/community-vmware-*.tar.gz`.
 - Vault secrets are read from `cubbyhole/secret` via `vault` CLI (`vault kv get -field=...`) using `VAULT_ADDR` and `VAULT_TOKEN` from the shell environment.
+- If `aleksei_password_hash` is missing in Vault, playbook auto-generates SHA-512 hash from `aleksei_user_pass` and stores it back to `cubbyhole/secret`.
 - Patroni inventory is built dynamically from `vars.yml` (`patroni*_hostname`, `patroni*_ip`) so no fixed Patroni IPs are stored in `inventories/production/hosts.yml`.
 
 ## Run
