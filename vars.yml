@@ -24,6 +24,39 @@ patroni3_fqdn: "{{ patroni3_hostname }}.{{ domain }}"
 # PostgreSQL version
 pg_major_version: 15
 
+
+# =========================
+# Infrastructure / ESXi
+# =========================
+esxi_hostname: "esxi"
+esxi_username: "root"
+esxi_validate_certs: false
+esxi_datacenter: "ha-datacenter"
+esxi_datastore: "datastore1"
+esxi_network_name: "VM Network"
+esxi_folder: "/ha-datacenter/vm"
+esxi_ubuntu_iso_path: "[datastore1] iso/ubuntu-24.04.1-live-server-amd64.iso"
+esxi_guest_id: "ubuntu64Guest"
+vm_hardware_version: 21
+vm_disk_type: thin
+vm_guest_memory_mb: "{{ ram | int * 1024 }}"
+vm_guest_cpu: "{{ cpu | int }}"
+
+# Optional local/offline collection tarball path for community.vmware
+community_vmware_collection_tarball: ""
+
+# =========================
+# Initial OS bootstrap access (fresh Ubuntu)
+# =========================
+bootstrap_connect_user: "ubuntu"
+bootstrap_connect_password: "{{ aleksei_user_pass }}"
+bootstrap_connect_become_password: "{{ bootstrap_connect_password }}"
+
+# Final automation user that must exist on Patroni nodes
+bootstrap_user: "aleksei"
+bootstrap_password: "{{ aleksei_user_pass }}"
+
+
 # Database objects
 app_db_name: "{{ project_name }}"
 app_schema_name: "{{ project_name }}"
@@ -83,19 +116,21 @@ app2_hba: "- host {{ app_db_name }} {{ app_user_name }} 192.168.144/32 scram-sha
 # Variables to be loaded from Vault
 # They are defined here as empty but will be populated when using the vault lookup plugin
 vault_secrets:
-  zabbix_monitor_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:zbx_monitor_pass') }}"
-  app_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:app_user_pass') }}"
-  postgres_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:postgres_user_pass') }}"
-  ppem_agent_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:ppem_agent_user_pass') }}"
-  otel_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:otel_user_pass') }}"
-  backup_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:backup_user_pass') }}"
-  postgres_exporter_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:postgres_exporter_user_pass') }}"
-  zbx_monitor_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:zbx_monitor_user_pass') }}"
-  auditor_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:auditor_user_pass') }}"
-  ppem_api_key: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:ppem_api_key') }}"
-  admin_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:admin_user_pass') }}"
-  replicator_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:replicator_user_pass') }}"
-  rewind_user_pass: "{{ lookup('hashi_vault', 'secret=secret/{{ project_name }}:rewind_user_pass') }}"
+  zabbix_monitor_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zbx_monitor_pass cubbyhole/secret') | trim }}"
+  app_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=app_user_pass cubbyhole/secret') | trim }}"
+  postgres_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=postgres_user_pass cubbyhole/secret') | trim }}"
+  ppem_agent_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=ppem_agent_user_pass cubbyhole/secret') | trim }}"
+  otel_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=otel_user_pass cubbyhole/secret') | trim }}"
+  backup_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=backup_user_pass cubbyhole/secret') | trim }}"
+  postgres_exporter_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=postgres_exporter_user_pass cubbyhole/secret') | trim }}"
+  zbx_monitor_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zbx_monitor_user_pass cubbyhole/secret') | trim }}"
+  auditor_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=auditor_user_pass cubbyhole/secret') | trim }}"
+  ppem_api_key: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=ppem_api_key cubbyhole/secret') | trim }}"
+  admin_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=admin_user_pass cubbyhole/secret') | trim }}"
+  replicator_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=replicator_user_pass cubbyhole/secret') | trim }}"
+  rewind_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=rewind_user_pass cubbyhole/secret') | trim }}"
+  aleksei_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_user_pass cubbyhole/secret') | trim }}"
+  esxi_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=esxi_pass cubbyhole/secret') | trim }}"
   
 # For convenience, separate variables can be created
 zbx_monitor_pass: "{{ vault_secrets.zabbix_monitor_pass }}"
@@ -112,3 +147,5 @@ admin_user_pass: "{{ vault_secrets.admin_user_pass }}"
 replicator_user_pass: "{{ vault_secrets.replicator_user_pass }}"
 rewind_user_pass: "{{ vault_secrets.rewind_user_pass }}"
 aleksei_user_pass: "{{ vault_secrets.aleksei_user_pass }}"
+esxi_pass: "{{ vault_secrets.esxi_pass }}"
+esxi_password: "{{ vault_secrets.esxi_pass }}"
