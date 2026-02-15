@@ -31,10 +31,12 @@
     validate: '/usr/sbin/visudo -cf %s'
 
 - name: Update apt cache
-  apt:
-    update_cache: true
-    cache_valid_time: 3600
+  command: apt-get update
+  changed_when: false
+  environment:
+    DEBIAN_FRONTEND: noninteractive
 
 - name: Upgrade Ubuntu packages
-  apt:
-    upgrade: dist
+  command: apt-get -y dist-upgrade
+  environment:
+    DEBIAN_FRONTEND: noninteractive
