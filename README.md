@@ -18,6 +18,7 @@ The playbook `playbooks/deploy_patroni_cluster.yml` automates:
 - Direct access to ESXi host and datastore.
 - Ubuntu ISO uploaded to datastore path configured by `esxi_ubuntu_iso_path`.
 - Ubuntu source is the live server ISO (no desktop UI by default).
+- VM firmware for new hosts is configurable via `esxi_boot_firmware` (`efi` by default).
 - Unattended Ubuntu installation method available (e.g. autoinstall seed).
 - For unattended install, attach a cloud-init seed ISO (`esxi_autoinstall_seed_iso_path`) built from `templates/autoinstall.user-data.j2` and `templates/autoinstall.meta-data.j2`.
 - Vault connectivity for secrets referenced in `vars.yml`.

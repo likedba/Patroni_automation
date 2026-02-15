@@ -41,6 +41,7 @@ esxi_network_name: "VM Network"
 esxi_folder: "/ha-datacenter/vm"
 esxi_ubuntu_iso_path: "[datastore1] iso/ubuntu-24.04.1-live-server-amd64.iso"
 esxi_guest_id: "ubuntu64Guest"
+esxi_boot_firmware: "efi"
 vm_hardware_version: 21
 vm_disk_type: thin
 vm_guest_memory_mb: "{{ ram | int * 1024 }}"
