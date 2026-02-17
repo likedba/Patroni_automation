@@ -61,5 +61,4 @@
     that:
       - "(patroni_status.stdout | regex_findall('\\|\\s+[^|]+\\|\\s+192\\.168\\.1\\.(135|136|137)\\s+\\|\\s+[^|]+\\|\\s+(running|streaming)\\s+\\|') | length) == 3"
     fail_msg: "Patroni cluster validation failed: all three members must be running/streaming."
-
   run_once: true

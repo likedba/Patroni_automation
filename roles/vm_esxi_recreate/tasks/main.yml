@@ -26,11 +26,8 @@
   loop: "{{ patroni_vm_matrix }}"
   delegate_to: localhost
 
-<<<<<<< codex/automate-patroni-cluster-deployment-using-ansible
 - name: Recreate Patroni VMs from clone source VM (with VMware guest customization)
-=======
-- name: Recreate Patroni VMs from clone source VM
->>>>>>> main
+- name: Recreate Patroni VMs from clone source VM (with VMware guest customization)
   community.vmware.vmware_guest:
     hostname: "{{ esxi_hostname }}"
     username: "{{ esxi_username }}"
@@ -62,7 +59,6 @@
     wait_for_ip_address: false
   loop: "{{ patroni_vm_matrix }}"
   delegate_to: localhost
-<<<<<<< codex/automate-patroni-cluster-deployment-using-ansible
   when: esxi_guest_customization_enabled | bool
 
 - name: Recreate Patroni VMs from clone source VM (standalone ESXi compatible)
@@ -76,11 +72,6 @@
     name: "{{ item.name }}"
     template: "{{ esxi_clone_source_vm }}"
     state: poweredon
-    guest_id: "{{ esxi_guest_id }}"
-    hardware:
-      memory_mb: "{{ vm_guest_memory_mb }}"
-      num_cpus: "{{ vm_guest_cpu }}"
-      version: "{{ vm_hardware_version }}"
     networks:
       - name: "{{ esxi_network_name }}"
         device_type: vmxnet3
@@ -89,8 +80,6 @@
   loop: "{{ patroni_vm_matrix }}"
   delegate_to: localhost
   when: not (esxi_guest_customization_enabled | bool)
-=======
->>>>>>> main
 
 - name: Wait for SSH on recreated Patroni hosts
   wait_for:

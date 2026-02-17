@@ -46,8 +46,9 @@ It does not auto-create infrastructure/bootstrap secrets like `esxi_pass`, `alek
 - PostgreSQL data directory is `/pgdata/{{ pg_major_version }}/data`.
 
 - VM deployment now uses clone-from-VM workflow from `esxi_clone_source_vm`.
-<<<<<<< codex/automate-patroni-cluster-deployment-using-ansible
 - For standalone ESXi, set `esxi_guest_customization_enabled: false` (default). In this mode VMware guest customization is skipped because many ESXi-only setups return `The operation is not supported on the object`.
 - With standalone mode, assign fixed `patroni*_mac` values and use DHCP reservations to map each node to the expected `patroni*_ip`.
-=======
->>>>>>> main
+- In standalone mode, source object should be a regular powered-off VM (golden VM), not a vCenter template object.
+- Standalone clone path intentionally avoids extra VM reconfiguration during clone for maximum API compatibility.
+- For standalone ESXi, set `esxi_guest_customization_enabled: false` (default). In this mode VMware guest customization is skipped because many ESXi-only setups return `The operation is not supported on the object`.
+- With standalone mode, assign fixed `patroni*_mac` values and use DHCP reservations to map each node to the expected `patroni*_ip`.
