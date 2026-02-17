@@ -65,7 +65,7 @@
   changed_when: false
   when:
     - not (esxi_guest_customization_enabled | bool)
-    - esxi_standalone_clone_backend == "govc"
+    - esxi_standalone_clone_backend in ["govc", "auto"]
 
 - name: Recreate Patroni VMs from clone source VM (standalone ESXi compatible via vmware_guest)
   community.vmware.vmware_guest:
@@ -85,9 +85,11 @@
     wait_for_ip_address: false
   loop: "{{ patroni_vm_matrix }}"
   delegate_to: localhost
+  register: vmware_guest_clone_result
+  ignore_errors: "{{ esxi_standalone_clone_backend == 'auto' }}"
   when:
     - not (esxi_guest_customization_enabled | bool)
-    - esxi_standalone_clone_backend == "vmware_guest"
+    - esxi_standalone_clone_backend in ['vmware_guest', 'auto']
 
 - name: Recreate Patroni VMs from clone source VM (standalone ESXi compatible via govc)
   shell: |
@@ -104,7 +106,18 @@
   changed_when: true
   when:
     - not (esxi_guest_customization_enabled | bool)
-    - esxi_standalone_clone_backend == "govc"
+    - esxi_standalone_clone_backend == "govc" or (esxi_standalone_clone_backend == "auto" and vmware_guest_clone_result is defined and vmware_guest_clone_result is failed)
+
+- name: Fail with actionable hint when vmware_guest backend is unsupported on standalone ESXi
+  fail:
+    msg: >-
+      Standalone ESXi clone via community.vmware.vmware_guest failed.
+      Switch backend to govc in vars.yml: esxi_standalone_clone_backend: "govc"
+      and set esxi_govc_url to your ESXi endpoint (example: https://192.168.1.83).
+  when:
+    - not (esxi_guest_customization_enabled | bool)
+    - esxi_standalone_clone_backend == "vmware_guest"
+    - vmware_guest_clone_result is failed
 
 - name: Wait for SSH on recreated Patroni hosts
   wait_for:

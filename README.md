@@ -50,4 +50,4 @@ It does not auto-create infrastructure/bootstrap secrets like `esxi_pass`, `alek
 - With standalone mode, assign fixed `patroni*_mac` values and use DHCP reservations to map each node to the expected `patroni*_ip`.
 - In standalone mode, source object should be a regular powered-off VM (golden VM), not a vCenter template object.
 - Standalone clone path intentionally avoids extra VM reconfiguration during clone for maximum API compatibility.
-- If standalone clone still fails with `The operation is not supported on the object`, switch to govc backend: set `esxi_standalone_clone_backend: "govc"` and ensure `govc` CLI is installed on control node.
+- If standalone clone still fails with `The operation is not supported on the object`, switch to govc backend: set `esxi_standalone_clone_backend: "govc"` (or `"auto"` to try vmware_guest first and fallback to govc) and ensure `govc` CLI is installed on control node.
