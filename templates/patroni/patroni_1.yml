@@ -51,7 +51,7 @@ postgresql:
   connect_address: {{ patroni1_ip }}:5432
   data_dir: /pgdata/{{ pg_major_version }}/data
   config_dir: /pgdata/{{ pg_major_version }}/data
-  bin_dir: /usr/lib/postgresql{{ pg_major_version }}/bin
+  bin_dir: /usr/lib/postgresql/{{ pg_major_version }}/bin
   pgpass: /tmp/pgpass
   use_unix_socket: /var/lib/pgsql/
   authentication:

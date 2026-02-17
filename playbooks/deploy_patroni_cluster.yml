@@ -160,6 +160,17 @@
   roles:
     - role: cluster_health_checks
 
+- name: Apply Patroni dynamic configuration
+  hosts: patroni_nodes
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Include vars.yml
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+  roles:
+    - role: patroni_dynamic_config
+
 - name: Apply DB objects on current primary node
   hosts: patroni_nodes
   gather_facts: false
