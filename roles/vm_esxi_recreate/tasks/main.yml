@@ -48,14 +48,13 @@
         device_type: vmxnet3
         mac: "{{ (item.mac | default('') | trim | length > 0) | ternary(item.mac, omit) }}"
         type: static
+        ip: "{{ item.ip }}"
+        netmask: "{{ esxi_guest_netmask }}"
+        gateway: "{{ esxi_guest_gateway }}"
+        dns_servers: "{{ esxi_guest_dns_servers }}"
     customization:
       hostname: "{{ item.name }}"
       domain: "{{ domain }}"
-      dns_servers: "{{ esxi_guest_dns_servers }}"
-      nic_setting_map:
-        - ip: "{{ item.ip }}"
-          subnet_mask: "{{ esxi_guest_netmask }}"
-          gateway: "{{ esxi_guest_gateway }}"
     wait_for_ip_address: false
   loop: "{{ patroni_vm_matrix }}"
   delegate_to: localhost
