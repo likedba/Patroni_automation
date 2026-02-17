@@ -160,6 +160,8 @@
   roles:
     - role: cluster_health_checks
 
+<<<<<<< codex/automate-patroni-cluster-deployment-using-ansible
+=======
 - name: Apply Patroni dynamic configuration
   hosts: patroni_nodes
   gather_facts: false
@@ -171,6 +173,7 @@
   roles:
     - role: patroni_dynamic_config
 
+>>>>>>> main
 - name: Apply DB objects on current primary node
   hosts: patroni_nodes
   gather_facts: false
