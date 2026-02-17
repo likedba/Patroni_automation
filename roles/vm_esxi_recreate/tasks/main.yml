@@ -1,0 +1,69 @@
+---
+- name: Build patroni VM matrix
+  set_fact:
+    patroni_vm_matrix:
+      - name: "{{ patroni1_hostname }}"
+        ip: "{{ patroni1_ip }}"
+        mac: "{{ patroni1_mac | default('') }}"
+      - name: "{{ patroni2_hostname }}"
+        ip: "{{ patroni2_ip }}"
+        mac: "{{ patroni2_mac | default('') }}"
+      - name: "{{ patroni3_hostname }}"
+        ip: "{{ patroni3_ip }}"
+        mac: "{{ patroni3_mac | default('') }}"
+
+- name: Remove old Patroni VMs before recreation
+  community.vmware.vmware_guest:
+    hostname: "{{ esxi_hostname }}"
+    username: "{{ esxi_username }}"
+    password: "{{ esxi_password }}"
+    validate_certs: "{{ esxi_validate_certs }}"
+    datacenter: "{{ esxi_datacenter }}"
+    folder: "{{ esxi_folder }}"
+    name: "{{ item.name }}"
+    state: absent
+    force: true
+  loop: "{{ patroni_vm_matrix }}"
+  delegate_to: localhost
+
+- name: Recreate Patroni VMs from clone source VM
+  community.vmware.vmware_guest:
+    hostname: "{{ esxi_hostname }}"
+    username: "{{ esxi_username }}"
+    password: "{{ esxi_password }}"
+    validate_certs: "{{ esxi_validate_certs }}"
+    datacenter: "{{ esxi_datacenter }}"
+    folder: "{{ esxi_folder }}"
+    name: "{{ item.name }}"
+    template: "{{ esxi_clone_source_vm }}"
+    state: poweredon
+    guest_id: "{{ esxi_guest_id }}"
+    wait_for_customization: true
+    hardware:
+      memory_mb: "{{ vm_guest_memory_mb }}"
+      num_cpus: "{{ vm_guest_cpu }}"
+      version: "{{ vm_hardware_version }}"
+    networks:
+      - name: "{{ esxi_network_name }}"
+        device_type: vmxnet3
+        mac: "{{ (item.mac | default('') | trim | length > 0) | ternary(item.mac, omit) }}"
+        type: static
+        ip: "{{ item.ip }}"
+        netmask: "{{ esxi_guest_netmask }}"
+        gateway: "{{ esxi_guest_gateway }}"
+        dns_servers: "{{ esxi_guest_dns_servers }}"
+    customization:
+      hostname: "{{ item.name }}"
+      domain: "{{ domain }}"
+    wait_for_ip_address: false
+  loop: "{{ patroni_vm_matrix }}"
+  delegate_to: localhost
+
+- name: Wait for SSH on recreated Patroni hosts
+  wait_for:
+    host: "{{ item.ip }}"
+    port: 22
+    timeout: 3600
+    delay: 30
+  loop: "{{ patroni_vm_matrix }}"
+  delegate_to: localhost
