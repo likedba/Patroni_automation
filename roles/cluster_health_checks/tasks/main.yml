@@ -27,8 +27,17 @@
 - name: Validate etcd cluster has 3 endpoints
   assert:
     that:
+<<<<<<< codex/automate-patroni-cluster-deployment-using-ansible
       - "(etcd_status.stdout | regex_findall('\\|\\s+192\\.168\\.1\\.(135|136|137):2379\\s+\\|') | length) == 3"
     fail_msg: "ETCD cluster validation failed, expected 3 healthy endpoints."
+=======
+      - "patroni1_ip ~ ':2379' in etcd_status.stdout"
+      - "patroni2_ip ~ ':2379' in etcd_status.stdout"
+      - "patroni3_ip ~ ':2379' in etcd_status.stdout"
+    fail_msg: >-
+      ETCD cluster validation failed, expected 3 healthy endpoints
+      ({{ patroni1_ip }}, {{ patroni2_ip }}, {{ patroni3_ip }}).
+>>>>>>> main
   run_once: true
 
 - name: Start patroni service on all nodes
@@ -59,6 +68,15 @@
 - name: Validate patroni states are running/streaming
   assert:
     that:
+<<<<<<< codex/automate-patroni-cluster-deployment-using-ansible
       - "(patroni_status.stdout | regex_findall('\\|\\s+[^|]+\\|\\s+192\\.168\\.1\\.(135|136|137)\\s+\\|\\s+[^|]+\\|\\s+(running|streaming)\\s+\\|') | length) == 3"
     fail_msg: "Patroni cluster validation failed: all three members must be running/streaming."
+=======
+      - "patroni_status.stdout | regex_search(patroni1_ip ~ '\\s+\\|\\s+\\S+\\s+\\|\\s+(running|streaming)')"
+      - "patroni_status.stdout | regex_search(patroni2_ip ~ '\\s+\\|\\s+\\S+\\s+\\|\\s+(running|streaming)')"
+      - "patroni_status.stdout | regex_search(patroni3_ip ~ '\\s+\\|\\s+\\S+\\s+\\|\\s+(running|streaming)')"
+    fail_msg: >-
+      Patroni cluster validation failed: all three members must be running/streaming
+      ({{ patroni1_ip }}, {{ patroni2_ip }}, {{ patroni3_ip }}).
+>>>>>>> main
   run_once: true
