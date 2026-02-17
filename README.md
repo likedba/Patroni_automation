@@ -16,15 +16,12 @@ The playbook `playbooks/deploy_patroni_cluster.yml` automates:
 - All deployment variables are centralized in `vars.yml`.
 - Ansible control node with collections from `collections/requirements.yml`.
 - Direct access to ESXi host and datastore.
-- Ubuntu ISO uploaded to datastore path configured by `esxi_ubuntu_iso_path`.
-- Ubuntu source is the live server ISO (no desktop UI by default).
-- Unattended Ubuntu installation method available (e.g. autoinstall seed).
-- For unattended install, attach a cloud-init seed ISO (`esxi_autoinstall_seed_iso_path`) built from `templates/autoinstall.user-data.j2` and `templates/autoinstall.meta-data.j2`.
+- Prepared source VM (golden VM) exists on ESXi (`esxi_clone_source_vm` in `vars.yml`).
 - Vault connectivity for secrets referenced in `vars.yml`.
 - The control node needs `vault` CLI installed and authenticated.
 - `community.vmware` collection is mandatory; if Galaxy is unreachable, provide local tarball path via `-e community_vmware_collection_tarball=/path/community-vmware-*.tar.gz`.
 - Vault secrets are read from `secret/patroni_dpl` via `vault` CLI (`vault kv get -field=...`) using `VAULT_ADDR` and `VAULT_TOKEN` from the shell environment.
-- `aleksei_password_hash` must exist in Vault before run when autoinstall is enabled.
+- Source VM should have `open-vm-tools`, `python3`, `sudo`, and SSH enabled for successful guest customization and Ansible access.
 - Patroni inventory is built dynamically from `vars.yml` (`patroni*_hostname`, `patroni*_ip`) so no fixed Patroni IPs are stored in `inventories/production/hosts.yml`.
 - `patroni*_mac` in `vars.yml` is optional; leave it empty to let ESXi assign a valid MAC automatically.
 
@@ -36,25 +33,11 @@ ansible-playbook playbooks/prepare_vault_secrets.yml
 ansible-playbook playbooks/deploy_patroni_cluster.yml
 ```
 
-To render autoinstall seed files manually, include variables from `vars.yml` (so `autoinstall_password_hash` is available):
-
-```bash
-ansible localhost -i localhost, -c local -e @vars.yml \
-  -m template -a "src=templates/autoinstall.user-data.j2 dest=/tmp/user-data"
-ansible localhost -i localhost, -c local -e @vars.yml \
-  -m template -a "src=templates/autoinstall.meta-data.j2 dest=/tmp/meta-data"
-```
-
 `playbooks/prepare_vault_secrets.yml` auto-creates missing Vault fields (only for DB/Patroni users):
 - `admin_user_pass`, `replicator_user_pass`, `postgres_user_pass`, `rewind_user_pass`
 - `app_user_pass`, `backup_user_pass`, `postgres_exporter_user_pass`, `zbx_monitor_user_pass`, `otel_user_pass`, `ppem_agent_user_pass`, `auditor_user_pass`
 
 It does not auto-create infrastructure/bootstrap secrets like `esxi_pass`, `aleksei_user_pass`, or `aleksei_password_hash`.
-
-### Autoinstall notes (Ubuntu 24.04.x)
-
-- If installer prompts `Continue with autoinstall? (yes|no)`, this is Ubuntu/subiquity behavior when kernel cmdline lacks `autoinstall`.
-- Seed config is tuned for restricted networks: `interactive-sections: []`, `updates: none`, and `apt.fallback: offline-install`.
 
 ## Notes
 
@@ -62,4 +45,4 @@ It does not auto-create infrastructure/bootstrap secrets like `esxi_pass`, `alek
 - `patroni` service is **not** enabled on boot (starts from playbook only).
 - PostgreSQL data directory is `/pgdata/{{ pg_major_version }}/data`.
 
-- The autoinstall template creates `bootstrap_user` (default `aleksei`) with sudo access.
+- VM deployment now uses clone-from-VM workflow from `esxi_clone_source_vm`.

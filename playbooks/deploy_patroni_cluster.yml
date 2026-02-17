@@ -23,19 +23,10 @@
           - esxi_hostname is defined
           - esxi_username is defined
           - esxi_password is defined
+          - esxi_clone_source_vm is defined
+          - esxi_clone_source_vm | length > 0
           - bootstrap_connect_user is defined
           - bootstrap_connect_password is defined
-          - autoinstall_enabled is defined
-
-    - name: Validate autoinstall seed ISO path when enabled
-      assert:
-        that:
-          - esxi_autoinstall_seed_iso_path is defined
-          - esxi_autoinstall_seed_iso_path | length > 0
-          - autoinstall_password_hash is defined
-          - autoinstall_password_hash | length > 0
-        fail_msg: "Autoinstall is enabled but seed ISO path and/or aleksei_password_hash is not defined in vars.yml/Vault"
-      when: autoinstall_enabled | bool
 
     - name: Check if community.vmware collection module is available
       command: ansible-doc -t module community.vmware.vmware_guest
