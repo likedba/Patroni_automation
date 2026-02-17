@@ -27,7 +27,6 @@
   delegate_to: localhost
 
 - name: Recreate Patroni VMs from clone source VM (with VMware guest customization)
-- name: Recreate Patroni VMs from clone source VM (with VMware guest customization)
   community.vmware.vmware_guest:
     hostname: "{{ esxi_hostname }}"
     username: "{{ esxi_username }}"
