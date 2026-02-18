@@ -67,6 +67,41 @@
     - not (esxi_guest_customization_enabled | bool)
     - esxi_standalone_clone_backend in ["govc", "auto"]
 
+- name: Read clone source VM info via govc
+  command: govc vm.info -json "{{ esxi_clone_source_vm }}"
+  environment:
+    GOVC_URL: "{{ esxi_govc_url }}"
+    GOVC_USERNAME: "{{ esxi_username }}"
+    GOVC_PASSWORD: "{{ esxi_password }}"
+    GOVC_INSECURE: "{{ esxi_govc_insecure | ternary('1', '0') }}"
+    GOVC_DATACENTER: "{{ esxi_datacenter }}"
+  register: govc_source_vm_info
+  changed_when: false
+  when:
+    - not (esxi_guest_customization_enabled | bool)
+    - esxi_standalone_clone_backend in ["govc", "auto"]
+
+- name: Determine whether clone source is marked as template
+  set_fact:
+    esxi_clone_source_is_template: "{{ ((govc_source_vm_info.stdout | from_json).VirtualMachines[0].Config.Template | default(false)) | bool }}"
+  when:
+    - not (esxi_guest_customization_enabled | bool)
+    - esxi_standalone_clone_backend in ["govc", "auto"]
+
+- name: Convert clone source template to VM for standalone govc clone compatibility
+  command: govc vm.markasvm "{{ esxi_clone_source_vm }}"
+  environment:
+    GOVC_URL: "{{ esxi_govc_url }}"
+    GOVC_USERNAME: "{{ esxi_username }}"
+    GOVC_PASSWORD: "{{ esxi_password }}"
+    GOVC_INSECURE: "{{ esxi_govc_insecure | ternary('1', '0') }}"
+    GOVC_DATACENTER: "{{ esxi_datacenter }}"
+  when:
+    - not (esxi_guest_customization_enabled | bool)
+    - esxi_standalone_clone_backend in ["govc", "auto"]
+    - esxi_clone_source_auto_mark_as_vm | bool
+    - esxi_clone_source_is_template | default(false)
+
 - name: Recreate Patroni VMs from clone source VM (standalone ESXi compatible via vmware_guest)
   community.vmware.vmware_guest:
     hostname: "{{ esxi_hostname }}"
