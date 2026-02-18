@@ -39,7 +39,7 @@ esxi_datacenter: "ha-datacenter"
 esxi_datastore: "datastore1"
 esxi_network_name: "VM Network"
 esxi_folder: "/ha-datacenter/vm"
-esxi_clone_source_vm: "ubuntutemplate"
+esxi_clone_source_vm: "ubuntu_template"
 esxi_guest_id: "ubuntu64Guest"
 vm_hardware_version: 21
 vm_disk_type: thin
