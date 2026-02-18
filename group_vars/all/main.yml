@@ -1,15 +1,16 @@
 ---
-# ESXi connection
+# vCenter connection
 # hostname and username are expected from environment (with sane defaults)
-esxi_hostname: "{{ lookup('env', 'esxi_hostname') | default('esxi', true) }}"
-esxi_username: "{{ lookup('env', 'esxi_username') | default('root', true) }}"
-# password is stored in Vault at cubbyhole/secret
-esxi_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=esxi_pass cubbyhole/secret') | trim }}"
+esxi_hostname: "{{ lookup('env', 'esxi_hostname') | default('vcenter', true) }}"
+esxi_username: "{{ lookup('env', 'esxi_username') | default('administrator@vsphere.local', true) }}"
+# password is stored in Vault at secret/patroni_dpl
+esxi_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=esxi_pass secret/patroni_dpl') | trim }}"
 esxi_validate_certs: false
-esxi_datacenter: "ha-datacenter"
+esxi_datacenter: "Home Lab"
 esxi_datastore: "datastore1"
 esxi_network_name: "VM Network"
-esxi_folder: "/ha-datacenter/vm"
+esxi_folder: "/Home Lab/vm"
+esxi_host: "esxi"                  # физический ESXi хост внутри vCenter
 esxi_ubuntu_iso_path: "[datastore1] iso/ubuntu-24.04.1-live-server-amd64.iso"
 esxi_guest_id: "ubuntu64Guest"
 
@@ -21,10 +22,10 @@ vm_disk_type: thin
 
 # Bootstrap SSH
 bootstrap_user: aleksei
-bootstrap_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_user_pass cubbyhole/secret') | trim }}"
+bootstrap_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_user_pass secret/patroni_dpl') | trim }}"
 ansible_user: aleksei
-ansible_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_user_pass cubbyhole/secret') | trim }}"
-ansible_become_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_user_pass cubbyhole/secret') | trim }}"
+ansible_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_user_pass secret/patroni_dpl') | trim }}"
+ansible_become_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=aleksei_user_pass secret/patroni_dpl') | trim }}"
 
 # DNS server
 dnsmasq_host: "192.168.1.146"

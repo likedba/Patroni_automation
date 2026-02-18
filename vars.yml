@@ -15,7 +15,7 @@ patroni3_hostname: "vmpatronidb-3"
 patroni1_ip: "192.168.1.135"
 patroni2_ip: "192.168.1.136"
 patroni3_ip: "192.168.1.137"
-# Leave empty to let ESXi auto-assign safe MAC addresses
+# Leave empty to let vCenter auto-assign safe MAC addresses
 patroni1_mac: ""
 patroni2_mac: ""
 patroni3_mac: ""
@@ -30,15 +30,16 @@ pg_major_version: 15
 
 
 # =========================
-# Infrastructure / ESXi
+# Infrastructure / vCenter
 # =========================
-esxi_hostname: "esxi"
-esxi_username: "root"
+esxi_hostname: "vcenter"           # vCenter FQDN/IP (192.168.1.140)
+esxi_username: "administrator@vsphere.local"
 esxi_validate_certs: false
-esxi_datacenter: "ha-datacenter"
+esxi_datacenter: "Home Lab"
 esxi_datastore: "datastore1"
 esxi_network_name: "VM Network"
-esxi_folder: "/ha-datacenter/vm"
+esxi_folder: "/Home Lab/vm"
+esxi_host: "esxi"                  # физический ESXi хост внутри vCenter (192.168.1.83)
 esxi_clone_source_vm: "ubuntu_template"
 esxi_guest_id: "ubuntu64Guest"
 vm_hardware_version: 21
