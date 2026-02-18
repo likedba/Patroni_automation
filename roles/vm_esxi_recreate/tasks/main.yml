@@ -26,7 +26,7 @@
   loop: "{{ patroni_vm_matrix }}"
   delegate_to: localhost
 
-- name: Recreate Patroni VMs from clone source VM (with VMware guest customization)
+- name: Recreate Patroni VMs from vCenter template with static customization
   community.vmware.vmware_guest:
     hostname: "{{ esxi_hostname }}"
     username: "{{ esxi_username }}"
@@ -58,101 +58,6 @@
     wait_for_ip_address: false
   loop: "{{ patroni_vm_matrix }}"
   delegate_to: localhost
-  when: esxi_guest_customization_enabled | bool
-
-- name: Check govc availability for standalone clone backend
-  command: govc version
-  changed_when: false
-  when:
-    - not (esxi_guest_customization_enabled | bool)
-    - esxi_standalone_clone_backend in ["govc", "auto"]
-
-- name: Read clone source VM info via govc
-  command: govc vm.info -json "{{ esxi_clone_source_vm }}"
-  environment:
-    GOVC_URL: "{{ esxi_govc_url }}"
-    GOVC_USERNAME: "{{ esxi_username }}"
-    GOVC_PASSWORD: "{{ esxi_password }}"
-    GOVC_INSECURE: "{{ esxi_govc_insecure | ternary('1', '0') }}"
-    GOVC_DATACENTER: "{{ esxi_datacenter }}"
-  register: govc_source_vm_info
-  changed_when: false
-  when:
-    - not (esxi_guest_customization_enabled | bool)
-    - esxi_standalone_clone_backend in ["govc", "auto"]
-
-- name: Determine whether clone source is marked as template
-  set_fact:
-    esxi_clone_source_is_template: "{{ ((govc_source_vm_info.stdout | from_json).VirtualMachines[0].Config.Template | default(false)) | bool }}"
-  when:
-    - not (esxi_guest_customization_enabled | bool)
-    - esxi_standalone_clone_backend in ["govc", "auto"]
-
-- name: Convert clone source template to VM for standalone govc clone compatibility
-  command: govc vm.markasvm "{{ esxi_clone_source_vm }}"
-  environment:
-    GOVC_URL: "{{ esxi_govc_url }}"
-    GOVC_USERNAME: "{{ esxi_username }}"
-    GOVC_PASSWORD: "{{ esxi_password }}"
-    GOVC_INSECURE: "{{ esxi_govc_insecure | ternary('1', '0') }}"
-    GOVC_DATACENTER: "{{ esxi_datacenter }}"
-  when:
-    - not (esxi_guest_customization_enabled | bool)
-    - esxi_standalone_clone_backend in ["govc", "auto"]
-    - esxi_clone_source_auto_mark_as_vm | bool
-    - esxi_clone_source_is_template | default(false)
-
-- name: Recreate Patroni VMs from clone source VM (standalone ESXi compatible via vmware_guest)
-  community.vmware.vmware_guest:
-    hostname: "{{ esxi_hostname }}"
-    username: "{{ esxi_username }}"
-    password: "{{ esxi_password }}"
-    validate_certs: "{{ esxi_validate_certs }}"
-    datacenter: "{{ esxi_datacenter }}"
-    folder: "{{ esxi_folder }}"
-    name: "{{ item.name }}"
-    template: "{{ esxi_clone_source_vm }}"
-    state: poweredon
-    networks:
-      - name: "{{ esxi_network_name }}"
-        device_type: vmxnet3
-        mac: "{{ (item.mac | default('') | trim | length > 0) | ternary(item.mac, omit) }}"
-    wait_for_ip_address: false
-  loop: "{{ patroni_vm_matrix }}"
-  delegate_to: localhost
-  register: vmware_guest_clone_result
-  ignore_errors: "{{ esxi_standalone_clone_backend == 'auto' }}"
-  when:
-    - not (esxi_guest_customization_enabled | bool)
-    - esxi_standalone_clone_backend in ['vmware_guest', 'auto']
-
-- name: Recreate Patroni VMs from clone source VM (standalone ESXi compatible via govc)
-  shell: |
-    govc vm.clone -vm "{{ esxi_clone_source_vm }}" -on=false "{{ item.name }}"
-    govc vm.power -on "{{ item.name }}"
-  environment:
-    GOVC_URL: "{{ esxi_govc_url }}"
-    GOVC_USERNAME: "{{ esxi_username }}"
-    GOVC_PASSWORD: "{{ esxi_password }}"
-    GOVC_INSECURE: "{{ esxi_govc_insecure | ternary('1', '0') }}"
-    GOVC_DATACENTER: "{{ esxi_datacenter }}"
-  loop: "{{ patroni_vm_matrix }}"
-  delegate_to: localhost
-  changed_when: true
-  when:
-    - not (esxi_guest_customization_enabled | bool)
-    - esxi_standalone_clone_backend == "govc" or (esxi_standalone_clone_backend == "auto" and vmware_guest_clone_result is defined and vmware_guest_clone_result is failed)
-
-- name: Fail with actionable hint when vmware_guest backend is unsupported on standalone ESXi
-  fail:
-    msg: >-
-      Standalone ESXi clone via community.vmware.vmware_guest failed.
-      Switch backend to govc in vars.yml: esxi_standalone_clone_backend: "govc"
-      and set esxi_govc_url to your ESXi endpoint (example: https://192.168.1.83).
-  when:
-    - not (esxi_guest_customization_enabled | bool)
-    - esxi_standalone_clone_backend == "vmware_guest"
-    - vmware_guest_clone_result is failed
 
 - name: Wait for SSH on recreated Patroni hosts
   wait_for:

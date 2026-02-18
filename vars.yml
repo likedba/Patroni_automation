@@ -49,14 +49,7 @@ esxi_guest_netmask: "255.255.255.0"
 esxi_guest_gateway: "192.168.1.1"
 esxi_guest_dns_servers:
   - "192.168.1.146"
-# true for vCenter-based customization; false for standalone ESXi compatibility
-esxi_guest_customization_enabled: false
-# standalone clone backend: vmware_guest or govc
-esxi_standalone_clone_backend: "auto"
-esxi_govc_url: "https://{{ esxi_hostname }}"
-esxi_govc_insecure: true
-# if source object is a template, convert to VM before govc cloning
-esxi_clone_source_auto_mark_as_vm: true
+esxi_guest_customization_enabled: true
 
 # Optional local/offline collection tarball path for community.vmware
 community_vmware_collection_tarball: ""

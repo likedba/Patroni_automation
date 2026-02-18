@@ -45,10 +45,6 @@ It does not auto-create infrastructure/bootstrap secrets like `esxi_pass`, `alek
 - `patroni` service is **not** enabled on boot (starts from playbook only).
 - PostgreSQL data directory is `/pgdata/{{ pg_major_version }}/data`.
 
-- VM deployment now uses clone-from-VM workflow from `esxi_clone_source_vm`.
-- For standalone ESXi, set `esxi_guest_customization_enabled: false` (default). In this mode VMware guest customization is skipped because many ESXi-only setups return `The operation is not supported on the object`.
-- With standalone mode, assign fixed `patroni*_mac` values and use DHCP reservations to map each node to the expected `patroni*_ip`.
-- In standalone mode, source object should be a regular powered-off VM (golden VM), not a vCenter template object.
-- Standalone clone path intentionally avoids extra VM reconfiguration during clone for maximum API compatibility.
-- If standalone clone still fails with `The operation is not supported on the object`, switch to govc backend: set `esxi_standalone_clone_backend: "govc"` (or `"auto"` to try vmware_guest first and fallback to govc) and ensure `govc` CLI is installed on control node.
-- If your source object was marked as template, standalone flow can auto-convert it to VM before clone (`esxi_clone_source_auto_mark_as_vm: true`).
+- VM deployment uses vCenter template clone workflow from `esxi_clone_source_vm`.
+- vCenter guest customization with static IPv4 is enabled (`esxi_guest_customization_enabled: true`) and used to set per-node hostname/IP/gateway/DNS during clone.
+- `esxi_hostname` should point to vCenter endpoint (for example `vcenter.infra.local`), not standalone ESXi host.
