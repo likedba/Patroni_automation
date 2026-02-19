@@ -15,7 +15,7 @@ vcenter_datastore: "datastore1"
 vcenter_folder: "/Home Lab/vm"
 vcenter_network: "VM Network"
 vcenter_template: "ubuntu_template"
-vcenter_esxi_host: "esxi"                          # физический ESXi хост внутри vCenter (192.168.1.83)
+vcenter_esxi_host: "esxi.infra.local"              # физический ESXi хост внутри vCenter (192.168.1.83)
 
 # =========================
 # VM hardware
