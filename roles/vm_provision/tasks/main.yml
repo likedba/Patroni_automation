@@ -1,0 +1,56 @@
+---
+- name: Remove existing Patroni VMs
+  community.vmware.vmware_guest:
+    hostname: "{{ vcenter_hostname }}"
+    username: "{{ vcenter_username }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: "{{ vcenter_validate_certs }}"
+    datacenter: "{{ vcenter_datacenter }}"
+    folder: "{{ vcenter_folder }}"
+    name: "{{ item.name }}"
+    state: absent
+    force: true
+  loop: "{{ patroni_vms }}"
+  delegate_to: localhost
+
+- name: Clone Patroni VMs from template
+  community.vmware.vmware_guest:
+    hostname: "{{ vcenter_hostname }}"
+    username: "{{ vcenter_username }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: "{{ vcenter_validate_certs }}"
+    datacenter: "{{ vcenter_datacenter }}"
+    folder: "{{ vcenter_folder }}"
+    name: "{{ item.name }}"
+    template: "{{ vcenter_template }}"
+    esxi_hostname: "{{ vcenter_esxi_host }}"
+    state: poweredon
+    guest_id: "{{ vm_guest_id }}"
+    wait_for_customization: true
+    hardware:
+      memory_mb: "{{ vm_ram_mb }}"
+      num_cpus: "{{ vm_cpu }}"
+      version: "{{ vm_hardware_version }}"
+    networks:
+      - name: "{{ vcenter_network }}"
+        device_type: vmxnet3
+        type: static
+        ip: "{{ item.ip }}"
+        netmask: "{{ vm_netmask }}"
+        gateway: "{{ vm_gateway }}"
+        dns_servers: "{{ vm_dns_servers }}"
+    customization:
+      hostname: "{{ item.name }}"
+      domain: "{{ domain }}"
+    wait_for_ip_address: false
+  loop: "{{ patroni_vms }}"
+  delegate_to: localhost
+
+- name: Wait for SSH on Patroni VMs
+  wait_for:
+    host: "{{ item.ip }}"
+    port: 22
+    timeout: 600
+    delay: 15
+  loop: "{{ patroni_vms }}"
+  delegate_to: localhost
