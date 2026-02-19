@@ -13,7 +13,7 @@
         username: "{{ vcenter_username }}"
         password: "{{ vcenter_password }}"
         validate_certs: "{{ vcenter_validate_certs }}"
-        datacenter: "{{ vcenter_datacenter }}"
+        show_esxi_hostname: true
       register: vm_info
 
     - name: Show unique ESXi host names as registered in vCenter
