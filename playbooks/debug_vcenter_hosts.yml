@@ -1,0 +1,34 @@
+---
+- name: Debug vCenter - find registered ESXi hostnames
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Get all VMs info (includes esxi_hostname field)
+      community.vmware.vmware_vm_info:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        datacenter: "{{ vcenter_datacenter }}"
+      register: vm_info
+
+    - name: Show unique ESXi host names as registered in vCenter
+      debug:
+        msg: "ESXi hosts found: {{ vm_info.virtual_machines | map(attribute='esxi_hostname') | unique | list }}"
+
+    - name: Get cluster info (if ESXi is in a cluster)
+      community.vmware.vmware_cluster_info:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        datacenter: "{{ vcenter_datacenter }}"
+      register: cluster_info
+
+    - name: Show clusters
+      debug:
+        msg: "Clusters: {{ cluster_info.clusters.keys() | list }}"
