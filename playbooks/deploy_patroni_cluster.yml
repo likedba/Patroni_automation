@@ -16,7 +16,8 @@
           - vcenter_datacenter is defined and vcenter_datacenter | length > 0
           - vcenter_template is defined and vcenter_template | length > 0
           - vcenter_esxi_host is defined and vcenter_esxi_host | length > 0
-          - patroni_vms is defined and patroni_vms | length == 3
+          - patroni_vms is defined and patroni_vms | length > 0
+          - infra_vms is defined and infra_vms | length > 0
         fail_msg: "One or more required variables are missing in vars.yml"
 
     - name: Check community.vmware collection is available
@@ -40,6 +41,14 @@
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
 
-    - name: Provision VMs
+    - name: Provision Patroni VMs
       include_role:
         name: vm_provision
+      vars:
+        vms_to_provision: "{{ patroni_vms }}"
+
+    - name: Provision Infra VMs
+      include_role:
+        name: vm_provision
+      vars:
+        vms_to_provision: "{{ infra_vms }}"

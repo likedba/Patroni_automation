@@ -10,7 +10,7 @@
     name: "{{ item.name }}"
     state: absent
     force: true
-  loop: "{{ patroni_vms }}"
+  loop: "{{ vms_to_provision }}"
   delegate_to: localhost
 
 - name: Clone Patroni VMs from template
@@ -43,7 +43,7 @@
       hostname: "{{ item.name }}"
       domain: "{{ domain }}"
     wait_for_ip_address: false
-  loop: "{{ patroni_vms }}"
+  loop: "{{ vms_to_provision }}"
   delegate_to: localhost
 
 - name: Wait for SSH on Patroni VMs
@@ -52,5 +52,5 @@
     port: 22
     timeout: 600
     delay: 15
-  loop: "{{ patroni_vms }}"
+  loop: "{{ vms_to_provision }}"
   delegate_to: localhost
