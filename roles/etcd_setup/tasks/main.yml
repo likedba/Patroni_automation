@@ -20,6 +20,7 @@
     port: 2379
     timeout: 30
   delegate_to: localhost
+  become: false
 
 - name: Check etcd cluster status
   ansible.builtin.command:
@@ -29,11 +30,13 @@
   register: etcd_status
   run_once: true
   changed_when: false
+  become: false
 
 - name: Display etcd cluster status
   ansible.builtin.debug:
     msg: "{{ etcd_status.stdout_lines }}"
   run_once: true
+  become: false
 
 - name: Verify all 3 etcd endpoints are healthy
   ansible.builtin.assert:
@@ -42,3 +45,4 @@
       - etcd_status.stdout_lines | select('search', ':2379') | list | length == 3
     fail_msg: "etcd cluster is not healthy — expected 3 endpoints, check output above"
   run_once: true
+  become: false
