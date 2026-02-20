@@ -1,0 +1,106 @@
+---
+# Step 1: Update ETCD_INITIAL_CLUSTER_STATE for future restarts
+- name: Set ETCD_INITIAL_CLUSTER_STATE to existing
+  ansible.builtin.lineinfile:
+    path: /etc/default/etcd
+    regexp: '^ETCD_INITIAL_CLUSTER_STATE='
+    line: 'ETCD_INITIAL_CLUSTER_STATE="existing"'
+
+# Step 2: Create PostgreSQL and Patroni directory structure
+- name: Create PostgreSQL and Patroni directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: '0700'
+  loop:
+    - /pgdata
+    - /pgdata/18
+    - /pgdata/18/data
+    - /pgdata/patroni
+
+# Step 3: Create pgpass file and patroni log file
+- name: Create pgpass file
+  ansible.builtin.file:
+    path: /tmp/pgpass
+    state: touch
+    owner: postgres
+    group: postgres
+    mode: '0600'
+    modification_time: preserve
+    access_time: preserve
+
+- name: Create patroni log file
+  ansible.builtin.file:
+    path: /pgdata/patroni/patroni.log
+    state: touch
+    owner: postgres
+    group: postgres
+    modification_time: preserve
+    access_time: preserve
+
+# Step 4: Deploy patroni configuration
+- name: Ensure /etc/patroni directory exists
+  ansible.builtin.file:
+    path: /etc/patroni
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy patroni configuration
+  ansible.builtin.template:
+    src: patroni_config.j2
+    dest: /etc/patroni/config.yml
+    owner: postgres
+    group: postgres
+    mode: '0600'
+  notify: restart patroni
+
+# Step 6: Start patroni service
+- name: Start and enable patroni service
+  ansible.builtin.systemd:
+    name: patroni
+    state: started
+    enabled: true
+
+# Step 7: Verify patroni cluster
+- name: Wait for Patroni REST API to be reachable on all nodes
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 8008
+    timeout: 120
+    delay: 5
+  delegate_to: localhost
+  become: false
+
+- name: Wait for cluster leader election
+  ansible.builtin.pause:
+    seconds: 15
+  run_once: true
+  become: false
+
+- name: Check Patroni cluster status
+  ansible.builtin.command:
+    cmd: patronictl -c /etc/patroni/config.yml list
+  register: patroni_status
+  run_once: true
+  changed_when: false
+  become: true
+  become_user: postgres
+
+- name: Display Patroni cluster status
+  ansible.builtin.debug:
+    msg: "{{ patroni_status.stdout_lines }}"
+  run_once: true
+  become: false
+
+- name: Verify all 3 Patroni nodes are running
+  ansible.builtin.assert:
+    that:
+      - patroni_status.rc == 0
+      - patroni_status.stdout_lines | select('search', 'running|streaming') | list | length == 3
+    fail_msg: "Patroni cluster is not healthy — expected 3 nodes, check output above"
+  run_once: true
+  become: false

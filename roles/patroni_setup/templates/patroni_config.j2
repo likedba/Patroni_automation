@@ -1,0 +1,74 @@
+scope: {{ project_name }}-cluster
+namespace: /service/
+name: {{ inventory_hostname }}
+
+log:
+  dir: /pgdata/patroni
+  level: INFO
+
+restapi:
+  listen: {{ ansible_host }}:8008
+  connect_address: {{ ansible_host }}:8008
+
+etcd3:
+  hosts: {{ node1_ip }}:2379, {{ node2_ip }}:2379, {{ node3_ip }}:2379
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+
+  pg_hba:
+    - local all all trust
+    - host all all 127.0.0.1/32 trust
+    - local replication all trust
+    - host replication all 127.0.0.1/32 trust
+    - host replication replicator 127.0.0.1/32 scram-sha-256
+    - host replication replicator {{ node1_ip }}/32 scram-sha-256
+    - host replication replicator {{ node2_ip }}/32 scram-sha-256
+    - host replication replicator {{ node3_ip }}/32 scram-sha-256
+    - host all all {{ node1_ip }}/32 scram-sha-256
+    - host all all {{ node2_ip }}/32 scram-sha-256
+    - host all all {{ node3_ip }}/32 scram-sha-256
+    - host all all 0.0.0.0/0 scram-sha-256
+
+  users:
+    admin:
+      password: {{ admin_pass }}
+      options:
+        - createrole
+        - createdb
+
+postgresql:
+  listen: 127.0.0.1,{{ ansible_host }}:5432
+  connect_address: {{ ansible_host }}:5432
+  data_dir: /pgdata/18/data
+  config_dir: /pgdata/18/data
+  bin_dir: /usr/lib/postgresql/18/bin
+  pgpass: /tmp/pgpass
+  use_unix_socket: /var/lib/pgsql/
+  authentication:
+    replication:
+      username: replicator
+      password: {{ replicator_pass }}
+    superuser:
+      username: postgres
+      password: {{ postgres_pass }}
+    rewind:
+      username: rewind
+      password: {{ rewind_pass }}
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
+  nosync: false

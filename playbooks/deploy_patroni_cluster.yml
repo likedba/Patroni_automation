@@ -130,3 +130,24 @@
     - name: Configure and start etcd
       include_role:
         name: etcd_setup
+
+- name: Configure and start Patroni
+  hosts: patroni_nodes
+  gather_facts: false
+  become: true
+  tags: [configure, patroni]
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Configure and start Patroni cluster
+      include_role:
+        name: patroni_setup
