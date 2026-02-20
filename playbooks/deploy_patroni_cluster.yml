@@ -94,11 +94,18 @@
   gather_facts: false
   become: true
   tags: [configure, packages]
-  tasks:
+  pre_tasks:
     - name: Load project variables
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
+      become: false
 
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
     - name: Install packages and stop services
       include_role:
         name: patroni_packages
@@ -108,11 +115,18 @@
   gather_facts: false
   become: true
   tags: [configure, etcd]
-  tasks:
+  pre_tasks:
     - name: Load project variables
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
+      become: false
 
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
     - name: Configure and start etcd
       include_role:
         name: etcd_setup
