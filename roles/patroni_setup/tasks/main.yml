@@ -88,7 +88,6 @@
   run_once: true
   changed_when: false
   become: true
-  become_user: postgres
 
 - name: Display Patroni cluster status
   ansible.builtin.debug:
