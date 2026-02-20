@@ -1,0 +1,45 @@
+---
+- name: Install postgresql-common
+  ansible.builtin.apt:
+    name: postgresql-common
+    state: present
+    update_cache: true
+
+- name: Check if PGDG repository is already configured
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/pgdg.list
+  register: pgdg_repo
+
+- name: Add PostgreSQL PGDG repository
+  ansible.builtin.shell:
+    cmd: /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: not pgdg_repo.stat.exists
+  changed_when: true
+
+- name: Install Patroni cluster packages
+  ansible.builtin.apt:
+    name:
+      - postgresql-18
+      - patroni
+      - etcd-server
+      - etcd-client
+    state: present
+    update_cache: true
+
+- name: Stop postgresql service
+  ansible.builtin.systemd:
+    name: postgresql
+    state: stopped
+  ignore_errors: true
+
+- name: Mask postgresql service
+  ansible.builtin.systemd:
+    name: postgresql
+    masked: true
+
+- name: Stop etcd service
+  ansible.builtin.systemd:
+    name: etcd
+    state: stopped

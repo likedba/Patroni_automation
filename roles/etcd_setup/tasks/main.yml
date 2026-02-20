@@ -1,0 +1,44 @@
+---
+- name: Deploy etcd configuration
+  ansible.builtin.template:
+    src: etcd.j2
+    dest: /etc/default/etcd
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart etcd
+
+- name: Start and enable etcd service
+  ansible.builtin.systemd:
+    name: etcd
+    state: started
+    enabled: true
+
+- name: Wait for etcd port to be reachable
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 2379
+    timeout: 30
+  delegate_to: localhost
+
+- name: Check etcd cluster status
+  ansible.builtin.command:
+    cmd: >
+      etcdctl endpoint status -w table
+      --endpoints={{ node1_ip }}:2379,{{ node2_ip }}:2379,{{ node3_ip }}:2379
+  register: etcd_status
+  run_once: true
+  changed_when: false
+
+- name: Display etcd cluster status
+  ansible.builtin.debug:
+    msg: "{{ etcd_status.stdout_lines }}"
+  run_once: true
+
+- name: Verify all 3 etcd endpoints are healthy
+  ansible.builtin.assert:
+    that:
+      - etcd_status.rc == 0
+      - etcd_status.stdout_lines | select('search', ':2379') | list | length == 3
+    fail_msg: "etcd cluster is not healthy — expected 3 endpoints, check output above"
+  run_once: true

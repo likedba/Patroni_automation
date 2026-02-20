@@ -1,0 +1,23 @@
+---
+- name: Check if cluster passwords already exist in Vault
+  ansible.builtin.command:
+    cmd: vault kv get secret/patroni_dpl/{{ project_name }}/
+  register: vault_check
+  failed_when: false
+  changed_when: false
+
+- name: Generate and store cluster passwords in Vault
+  ansible.builtin.shell: |
+    vault kv put secret/patroni_dpl/{{ project_name }}/ \
+      admin_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
+      replicator_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
+      rewind_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
+      postgres_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
+      {{ app_user }}_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
+  when: vault_check.rc != 0
+  changed_when: true
+
+- name: Show Vault path for cluster passwords
+  ansible.builtin.debug:
+    msg: "Cluster passwords stored at: secret/patroni_dpl/{{ project_name }}/"
+  when: vault_check.rc != 0

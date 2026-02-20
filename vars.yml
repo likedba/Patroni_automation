@@ -5,6 +5,21 @@
 domain: "infra.local"
 
 # =========================
+# Cluster settings
+# =========================
+project_name: "test"
+app_user: "app"
+app_db_name: "test"
+
+# Derived from patroni_vms — do not edit directly
+node1_hostname: "{{ patroni_vms[0].name }}"
+node2_hostname: "{{ patroni_vms[1].name }}"
+node3_hostname: "{{ patroni_vms[2].name }}"
+node1_ip: "{{ patroni_vms[0].ip }}"
+node2_ip: "{{ patroni_vms[1].ip }}"
+node3_ip: "{{ patroni_vms[2].ip }}"
+
+# =========================
 # vCenter
 # =========================
 vcenter_hostname: "vcenter"                        # 192.168.1.140

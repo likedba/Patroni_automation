@@ -2,6 +2,7 @@
 - name: Validate environment
   hosts: localhost
   gather_facts: false
+  tags: [always]
   tasks:
     - name: Load project variables
       include_vars:
@@ -18,6 +19,7 @@
           - vcenter_esxi_host is defined and vcenter_esxi_host | length > 0
           - patroni_vms is defined and patroni_vms | length > 0
           - infra_vms is defined and infra_vms | length > 0
+          - project_name is defined and project_name | length > 0
         fail_msg: "One or more required variables are missing in vars.yml"
 
     - name: Check community.vmware collection is available
@@ -33,9 +35,15 @@
           Install it with: ansible-galaxy collection install -r collections/requirements.yml
       when: vmware_module_check.rc != 0
 
+# ─────────────────────────────────────────────────────────────
+# PROVISION: create VMs from vCenter template
+# Run all:          ansible-playbook deploy.yml --tags provision
+# Restore one VM:   ansible-playbook deploy.yml --tags provision -e "target_vm=vmpatronidb-2"
+# ─────────────────────────────────────────────────────────────
 - name: Provision Patroni VMs from vCenter template
   hosts: localhost
   gather_facts: false
+  tags: [provision]
   tasks:
     - name: Load project variables
       include_vars:
@@ -45,10 +53,66 @@
       include_role:
         name: vm_provision
       vars:
-        vms_to_provision: "{{ patroni_vms }}"
+        vms_to_provision: >-
+          {{ patroni_vms | selectattr('name', 'equalto', target_vm) | list
+             if target_vm is defined else patroni_vms }}
+      when: >-
+        target_vm is not defined or
+        target_vm in (patroni_vms | map(attribute='name') | list)
 
     - name: Provision Infra VMs
       include_role:
         name: vm_provision
       vars:
-        vms_to_provision: "{{ infra_vms }}"
+        vms_to_provision: >-
+          {{ infra_vms | selectattr('name', 'equalto', target_vm) | list
+             if target_vm is defined else infra_vms }}
+      when: >-
+        target_vm is not defined or
+        target_vm in (infra_vms | map(attribute='name') | list)
+
+# ─────────────────────────────────────────────────────────────
+# CONFIGURE: generate passwords, install packages, configure services
+# Run all:          ansible-playbook deploy.yml --tags configure
+# Restore one VM:   ansible-playbook deploy.yml --tags configure --limit vmpatronidb-2
+# ─────────────────────────────────────────────────────────────
+- name: Generate and store cluster passwords in Vault
+  hosts: localhost
+  gather_facts: false
+  tags: [configure, passwords]
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Generate cluster passwords
+      include_role:
+        name: vault_passwords
+
+- name: Install Patroni cluster packages
+  hosts: patroni_nodes
+  gather_facts: false
+  become: true
+  tags: [configure, packages]
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Install packages and stop services
+      include_role:
+        name: patroni_packages
+
+- name: Configure and start etcd
+  hosts: patroni_nodes
+  gather_facts: false
+  become: true
+  tags: [configure, etcd]
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Configure and start etcd
+      include_role:
+        name: etcd_setup
