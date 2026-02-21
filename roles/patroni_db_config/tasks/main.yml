@@ -10,28 +10,33 @@
   become: true
 
 # Run psql commands via read-write connection string — psql finds the primary automatically
-- name: Create application user in PostgreSQL
-  ansible.builtin.shell: >
-    sudo -u postgres psql
-    "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432
-    dbname=postgres user=postgres
-    target_session_attrs=read-write connect_timeout=3"
-    -c "CREATE USER IF NOT EXISTS {{ app_user }} WITH PASSWORD '{{ app_user_pass }}';"
-  register: create_user_result
+- name: Create application user in PostgreSQL (idempotent via DO block)
+  ansible.builtin.shell: |
+    sudo -u postgres psql \
+      "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432 dbname=postgres user=postgres target_session_attrs=read-write connect_timeout=3" \
+      -c "DO \$\$ BEGIN CREATE USER {{ app_user }} WITH PASSWORD '{{ app_user_pass }}'; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
   run_once: true
-  changed_when: "'CREATE ROLE' in create_user_result.stdout"
+  changed_when: false
+  become: true
+
+- name: Check if application database already exists
+  ansible.builtin.shell: |
+    sudo -u postgres psql \
+      "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432 dbname=postgres user=postgres target_session_attrs=read-write connect_timeout=3" \
+      -tc "SELECT 1 FROM pg_database WHERE datname='{{ app_db_name }}'"
+  register: db_check
+  run_once: true
+  changed_when: false
   become: true
 
 - name: Create application database in PostgreSQL
-  ansible.builtin.shell: >
-    sudo -u postgres psql
-    "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432
-    dbname=postgres user=postgres
-    target_session_attrs=read-write connect_timeout=3"
-    -c "CREATE DATABASE IF NOT EXISTS {{ app_db_name }} OWNER {{ app_user }};"
-  register: create_db_result
+  ansible.builtin.shell: |
+    sudo -u postgres psql \
+      "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432 dbname=postgres user=postgres target_session_attrs=read-write connect_timeout=3" \
+      -c "CREATE DATABASE {{ app_db_name }} OWNER {{ app_user }};"
+  when: "'1' not in db_check.stdout"
   run_once: true
-  changed_when: "'CREATE DATABASE' in create_db_result.stdout"
+  changed_when: true
   become: true
 
 # Create pdc.yml and apply Patroni DCS config (run once from first node)
