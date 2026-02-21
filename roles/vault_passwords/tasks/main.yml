@@ -21,3 +21,19 @@
   ansible.builtin.debug:
     msg: "Cluster passwords stored at: secret/patroni_dpl/{{ project_name }}/"
   when: vault_check.rc != 0
+
+# If the path already exists, ensure app_user password is present (e.g. after app_user rename)
+- name: Check if app user password exists in Vault
+  ansible.builtin.command:
+    cmd: vault kv get -field={{ app_user }}_pass secret/patroni_dpl/{{ project_name }}/
+  register: vault_app_user_check
+  failed_when: false
+  changed_when: false
+  when: vault_check.rc == 0
+
+- name: Add app user password to existing Vault entry
+  ansible.builtin.shell: |
+    vault kv patch secret/patroni_dpl/{{ project_name }}/ \
+      {{ app_user }}_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
+  when: vault_check.rc == 0 and vault_app_user_check.rc != 0
+  changed_when: true

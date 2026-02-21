@@ -151,3 +151,24 @@
     - name: Configure and start Patroni cluster
       include_role:
         name: patroni_setup
+
+- name: Configure Patroni DB and DCS settings
+  hosts: patroni_nodes
+  gather_facts: false
+  become: true
+  tags: [configure, db]
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Create DB user/database and apply DCS config
+      include_role:
+        name: patroni_db_config

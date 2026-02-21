@@ -1,0 +1,53 @@
+---
+# Create .pgpass for postgres user on all patroni nodes
+- name: Deploy .pgpass for postgres user
+  ansible.builtin.template:
+    src: pgpass.j2
+    dest: /var/lib/postgresql/.pgpass
+    owner: postgres
+    group: postgres
+    mode: '0600'
+  become: true
+
+# Run psql commands via read-write connection string — psql finds the primary automatically
+- name: Create application user in PostgreSQL
+  ansible.builtin.shell: >
+    sudo -u postgres psql
+    "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432
+    dbname=postgres user=postgres
+    target_session_attrs=read-write connect_timeout=3"
+    -c "CREATE USER IF NOT EXISTS {{ app_user }} WITH PASSWORD '{{ app_user_pass }}';"
+  register: create_user_result
+  run_once: true
+  changed_when: "'CREATE ROLE' in create_user_result.stdout"
+  become: true
+
+- name: Create application database in PostgreSQL
+  ansible.builtin.shell: >
+    sudo -u postgres psql
+    "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432
+    dbname=postgres user=postgres
+    target_session_attrs=read-write connect_timeout=3"
+    -c "CREATE DATABASE IF NOT EXISTS {{ app_db_name }} OWNER {{ app_user }};"
+  register: create_db_result
+  run_once: true
+  changed_when: "'CREATE DATABASE' in create_db_result.stdout"
+  become: true
+
+# Create pdc.yml and apply Patroni DCS config (run once from first node)
+- name: Deploy Patroni DCS config file
+  ansible.builtin.template:
+    src: pdc.yml.j2
+    dest: /pgdata/patroni/pdc.yml
+    owner: postgres
+    group: postgres
+    mode: '0640'
+  run_once: true
+  become: true
+
+- name: Apply Patroni DCS configuration
+  ansible.builtin.shell:
+    cmd: patronictl -c /etc/patroni/config.yml edit-config --replace /pgdata/patroni/pdc.yml --force --quiet
+  run_once: true
+  changed_when: true
+  become: true
