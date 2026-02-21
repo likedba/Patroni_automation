@@ -56,3 +56,10 @@
   run_once: true
   changed_when: true
   become: true
+
+- name: Restart Patroni cluster to apply new DCS configuration
+  ansible.builtin.shell:
+    cmd: patronictl -c /etc/patroni/config.yml restart {{ project_name }}-cluster --force
+  run_once: true
+  changed_when: true
+  become: true
