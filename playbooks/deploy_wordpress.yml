@@ -1,0 +1,28 @@
+---
+# ─────────────────────────────────────────────────────────────
+# WordPress stack deployment
+#
+# Run all:          ansible-playbook playbooks/deploy_wordpress.yml
+# NFS only:         ansible-playbook playbooks/deploy_wordpress.yml --tags nfs
+# ─────────────────────────────────────────────────────────────
+
+- name: Deploy NFS server for WordPress shared storage
+  hosts: nfs_servers
+  gather_facts: false
+  become: true
+  tags: [nfs]
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Configure NFS server
+      include_role:
+        name: nfs_server

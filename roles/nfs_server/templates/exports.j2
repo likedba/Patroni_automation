@@ -1,0 +1,4 @@
+# /etc/exports — managed by Ansible
+{% for server in app_servers %}
+/srv/nfs/wordpress/uploads  {{ server.ip }}(rw,sync,no_subtree_check,no_root_squash)
+{% endfor %}

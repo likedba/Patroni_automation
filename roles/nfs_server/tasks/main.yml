@@ -1,0 +1,47 @@
+---
+- name: Install NFS server and client packages
+  ansible.builtin.apt:
+    name:
+      - nfs-kernel-server
+      - nfs-common
+    state: present
+    update_cache: true
+  become: true
+
+- name: Create WordPress uploads directory
+  ansible.builtin.file:
+    path: /srv/nfs/wordpress/uploads
+    state: directory
+    owner: "33"
+    group: "33"
+    mode: "0755"
+    recurse: true
+  become: true
+
+- name: Deploy /etc/exports
+  ansible.builtin.template:
+    src: exports.j2
+    dest: /etc/exports
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: reload nfs exports
+
+- name: Enable and start nfs-kernel-server
+  ansible.builtin.systemd:
+    name: nfs-kernel-server
+    state: started
+    enabled: true
+  become: true
+
+- name: Verify NFS exports visible on localhost
+  ansible.builtin.command:
+    cmd: showmount -e localhost
+  register: nfs_exports
+  changed_when: false
+  become: false
+
+- name: Show NFS exports
+  ansible.builtin.debug:
+    var: nfs_exports.stdout_lines

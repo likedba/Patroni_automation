@@ -1,0 +1,12 @@
+---
+- name: reload nfs exports
+  ansible.builtin.shell:
+    cmd: exportfs -a
+  become: true
+  notify: restart nfs-kernel-server
+
+- name: restart nfs-kernel-server
+  ansible.builtin.systemd:
+    name: nfs-kernel-server
+    state: restarted
+  become: true
