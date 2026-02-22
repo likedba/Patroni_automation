@@ -1,0 +1,30 @@
+# Grafana configuration
+# Managed by Ansible — do not edit manually
+
+[server]
+protocol = https
+http_addr = 0.0.0.0
+http_port = 3000
+domain = {{ inventory_hostname }}.{{ domain }}
+root_url = https://{{ inventory_hostname }}.{{ domain }}:3000
+cert_file = /etc/grafana/grafana.crt
+cert_key = /etc/grafana/grafana.key
+
+[database]
+type = postgres
+host = 127.0.0.1:{{ monitoring_pg_port }}
+name = grafana
+user = grafana
+password = {{ grafana_db_pass }}
+ssl_mode = disable
+
+[plugins]
+allow_loading_unsigned_plugins = alexanderzobnin-zabbix-datasource
+
+[log]
+mode = console file
+level = info
+
+[log.file]
+daily_rotate = true
+max_days = 7

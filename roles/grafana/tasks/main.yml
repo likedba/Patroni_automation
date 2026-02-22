@@ -1,0 +1,160 @@
+---
+# ── 1. Grafana APT repository ────────────────────────────────
+- name: Ensure keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Check if Grafana GPG key already exists
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings/grafana.gpg
+  register: grafana_gpg
+
+- name: Download and install Grafana GPG key
+  ansible.builtin.shell: |
+    wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor -o /etc/apt/keyrings/grafana.gpg
+  when: not grafana_gpg.stat.exists
+  changed_when: true
+  become: true
+
+- name: Add Grafana APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
+    state: present
+    filename: grafana
+  become: true
+
+# ── 2. Install Grafana ───────────────────────────────────────
+- name: Install Grafana OSS
+  ansible.builtin.apt:
+    name: grafana
+    state: present
+    update_cache: true
+  become: true
+
+# ── 3. Self-signed SSL certificate ───────────────────────────
+- name: Check if Grafana SSL certificate already exists
+  ansible.builtin.stat:
+    path: /etc/grafana/grafana.crt
+  register: grafana_ssl_cert
+
+- name: Generate self-signed SSL certificate for Grafana
+  ansible.builtin.command:
+    cmd: >
+      openssl req -x509 -nodes -newkey rsa:4096 -days 3650
+      -keyout /etc/grafana/grafana.key
+      -out /etc/grafana/grafana.crt
+      -subj "/C=FI/L=Helsinki/O=infra/OU=monitoring/CN={{ inventory_hostname }}.{{ domain }}"
+  when: not grafana_ssl_cert.stat.exists
+  changed_when: true
+  become: true
+
+- name: Set Grafana SSL key permissions
+  ansible.builtin.file:
+    path: /etc/grafana/grafana.key
+    owner: grafana
+    group: grafana
+    mode: "0600"
+  become: true
+
+- name: Set Grafana SSL cert permissions
+  ansible.builtin.file:
+    path: /etc/grafana/grafana.crt
+    owner: grafana
+    group: grafana
+    mode: "0644"
+  become: true
+
+# ── 4. Deploy grafana.ini ────────────────────────────────────
+- name: Deploy grafana.ini
+  ansible.builtin.template:
+    src: grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+    owner: root
+    group: grafana
+    mode: "0640"
+  become: true
+  notify: restart grafana-server
+
+# ── 5. Install Zabbix plugin ─────────────────────────────────
+- name: Check if Zabbix plugin is already installed
+  ansible.builtin.stat:
+    path: /var/lib/grafana/plugins/alexanderzobnin-zabbix-app
+  register: zabbix_plugin
+
+- name: Install Grafana Zabbix plugin
+  ansible.builtin.command:
+    cmd: grafana-cli plugins install alexanderzobnin-zabbix-app
+  when: not zabbix_plugin.stat.exists
+  changed_when: true
+  become: true
+  notify: restart grafana-server
+
+# ── 6. Datasource provisioning ───────────────────────────────
+- name: Deploy Zabbix datasource provisioning
+  ansible.builtin.template:
+    src: zabbix-datasource.yml.j2
+    dest: /etc/grafana/provisioning/datasources/zabbix.yml
+    owner: root
+    group: grafana
+    mode: "0640"
+  become: true
+  notify: restart grafana-server
+
+# ── 7. Start and enable Grafana ──────────────────────────────
+- name: Start and enable grafana-server
+  ansible.builtin.systemd:
+    name: grafana-server
+    state: started
+    enabled: true
+  become: true
+
+- name: Flush handlers (apply config changes)
+  ansible.builtin.meta: flush_handlers
+
+# ── 8. UFW firewall ──────────────────────────────────────────
+- name: Check UFW status
+  ansible.builtin.command:
+    cmd: ufw status
+  register: ufw_status
+  changed_when: false
+  become: true
+
+- name: Add Grafana port to UFW
+  ansible.builtin.shell: |
+    ufw allow 3000/tcp
+  when: "'3000' not in ufw_status.stdout"
+  changed_when: true
+  become: true
+
+- name: Show UFW status
+  ansible.builtin.command:
+    cmd: ufw status verbose
+  register: ufw_final
+  changed_when: false
+  become: true
+
+- name: Display UFW status
+  ansible.builtin.debug:
+    var: ufw_final.stdout_lines
+
+# ── 9. Verification ──────────────────────────────────────────
+- name: Wait for Grafana to start
+  ansible.builtin.wait_for:
+    port: 3000
+    host: 127.0.0.1
+    timeout: 30
+    delay: 5
+
+- name: Verify Grafana responds on HTTPS
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:3000/api/health"
+    validate_certs: false
+    status_code: [200]
+  register: grafana_health
+
+- name: Display Grafana health status
+  ansible.builtin.debug:
+    msg: "Grafana HTTPS health: {{ grafana_health.json }}"
