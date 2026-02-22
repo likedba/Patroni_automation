@@ -293,7 +293,7 @@
   run_once: true
   changed_when: true
   become: true
-  no_log: true
+  # no_log: true  # temporarily disabled for debugging
 
 # ── 12. UFW firewall ─────────────────────────────────────────
 - name: Check UFW status
