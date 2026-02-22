@@ -1,0 +1,19 @@
+<?php
+// Zabbix web frontend configuration
+// Managed by Ansible — do not edit manually
+//
+// This file is deployed to skip the web installation wizard.
+
+$DB['TYPE']             = 'POSTGRESQL';
+$DB['SERVER']           = 'localhost';
+$DB['PORT']             = '{{ monitoring_pg_port }}';
+$DB['DATABASE']         = 'zabbix';
+$DB['USER']             = 'zabbix';
+$DB['PASSWORD']         = '{{ zabbix_db_pass }}';
+$DB['SCHEMA']           = '';
+
+$ZBX_SERVER             = 'localhost';
+$ZBX_SERVER_PORT        = '10051';
+$ZBX_SERVER_NAME        = 'Zabbix {{ inventory_hostname }}.{{ domain }}';
+
+date_default_timezone_set('Europe/Helsinki');

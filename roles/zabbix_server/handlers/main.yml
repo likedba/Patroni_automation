@@ -1,0 +1,18 @@
+---
+- name: restart zabbix-server
+  ansible.builtin.systemd:
+    name: zabbix-server
+    state: restarted
+  become: true
+
+- name: restart nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted
+  become: true
+
+- name: restart php8.3-fpm
+  ansible.builtin.systemd:
+    name: php8.3-fpm
+    state: restarted
+  become: true

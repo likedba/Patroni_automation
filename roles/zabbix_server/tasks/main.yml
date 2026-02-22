@@ -1,0 +1,235 @@
+---
+# ── 1. Zabbix 7.4 repository ─────────────────────────────────
+- name: Check if Zabbix repository is already configured
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/zabbix.list
+  register: zabbix_repo
+
+- name: Download Zabbix 7.4 repository package
+  ansible.builtin.get_url:
+    url: https://repo.zabbix.com/zabbix/7.4/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.4+ubuntu24.04_all.deb
+    dest: /tmp/zabbix-release.deb
+    mode: "0644"
+  when: not zabbix_repo.stat.exists
+
+- name: Install Zabbix repository package
+  ansible.builtin.apt:
+    deb: /tmp/zabbix-release.deb
+    state: present
+  when: not zabbix_repo.stat.exists
+  become: true
+
+- name: Update apt cache after adding Zabbix repo
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+
+# ── 2. Install Zabbix packages ───────────────────────────────
+- name: Install Zabbix Server and Web packages
+  ansible.builtin.apt:
+    name:
+      - zabbix-server-pgsql
+      - zabbix-frontend-php
+      - zabbix-nginx-conf
+      - zabbix-sql-scripts
+      - php8.3-pgsql
+      - openssl
+    state: present
+  become: true
+
+# ── 3. Import Zabbix database schema (idempotent) ────────────
+- name: Check if Zabbix schema is already imported
+  ansible.builtin.shell: |
+    sudo -u postgres psql -d zabbix -tc "SELECT 1 FROM information_schema.tables WHERE table_name = 'hosts' AND table_schema = 'public';"
+  register: zabbix_schema_check
+  changed_when: false
+  become: true
+
+- name: Import Zabbix database schema
+  ansible.builtin.shell: |
+    zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | psql -h 127.0.0.1 -U zabbix -d zabbix
+  environment:
+    PGPASSWORD: "{{ zabbix_db_pass }}"
+  when: "'1' not in zabbix_schema_check.stdout"
+  changed_when: true
+  no_log: true
+  become: true
+
+# ── 4. Configure zabbix_server.conf ──────────────────────────
+- name: Deploy zabbix_server.conf
+  ansible.builtin.template:
+    src: zabbix_server.conf.j2
+    dest: /etc/zabbix/zabbix_server.conf
+    owner: root
+    group: zabbix
+    mode: "0640"
+  become: true
+  notify: restart zabbix-server
+
+# ── 5. Deploy zabbix.conf.php (skip web wizard) ──────────────
+- name: Ensure Zabbix web config directory exists
+  ansible.builtin.file:
+    path: /etc/zabbix/web
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+  become: true
+
+- name: Deploy zabbix.conf.php
+  ansible.builtin.template:
+    src: zabbix.conf.php.j2
+    dest: /etc/zabbix/web/zabbix.conf.php
+    owner: www-data
+    group: www-data
+    mode: "0600"
+  become: true
+  notify: restart php8.3-fpm
+
+# ── 6. Self-signed SSL certificate ───────────────────────────
+- name: Create SSL directory
+  ansible.builtin.file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  become: true
+
+- name: Check if SSL certificate already exists
+  ansible.builtin.stat:
+    path: /etc/nginx/ssl/zabbix.crt
+  register: ssl_cert
+
+- name: Generate self-signed SSL certificate
+  ansible.builtin.command:
+    cmd: >
+      openssl req -x509 -nodes -newkey rsa:4096 -days 3650
+      -keyout /etc/nginx/ssl/zabbix.key
+      -out /etc/nginx/ssl/zabbix.crt
+      -subj "/C=FI/L=Helsinki/O=infra/OU=monitoring/CN={{ inventory_hostname }}.{{ domain }}"
+  when: not ssl_cert.stat.exists
+  changed_when: true
+  become: true
+
+- name: Set SSL key permissions
+  ansible.builtin.file:
+    path: /etc/nginx/ssl/zabbix.key
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+
+# ── 7. Nginx configuration for Zabbix ────────────────────────
+- name: Deploy Zabbix nginx configuration
+  ansible.builtin.template:
+    src: zabbix-nginx.conf.j2
+    dest: /etc/zabbix/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: restart nginx
+
+- name: Ensure Zabbix nginx config is linked in conf.d
+  ansible.builtin.file:
+    src: /etc/zabbix/nginx.conf
+    dest: /etc/nginx/conf.d/zabbix.conf
+    state: link
+  become: true
+  notify: restart nginx
+
+- name: Remove nginx default site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: true
+  notify: restart nginx
+
+# ── 8. Start and enable services ─────────────────────────────
+- name: Start and enable zabbix-server
+  ansible.builtin.systemd:
+    name: zabbix-server
+    state: started
+    enabled: true
+  become: true
+
+- name: Start and enable php8.3-fpm
+  ansible.builtin.systemd:
+    name: php8.3-fpm
+    state: started
+    enabled: true
+  become: true
+
+- name: Start and enable nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: true
+  become: true
+
+- name: Flush handlers (apply all config changes)
+  ansible.builtin.meta: flush_handlers
+
+# ── 9. UFW firewall ──────────────────────────────────────────
+- name: Check UFW status
+  ansible.builtin.command:
+    cmd: ufw status
+  register: ufw_status
+  changed_when: false
+  become: true
+
+- name: Configure UFW firewall rules
+  ansible.builtin.shell: |
+    ufw default deny incoming
+    ufw default allow outgoing
+    ufw allow 22/tcp
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    ufw allow 10051/tcp
+    ufw --force enable
+  when: "'10051' not in ufw_status.stdout"
+  changed_when: true
+  become: true
+
+- name: Show UFW status
+  ansible.builtin.command:
+    cmd: ufw status verbose
+  register: ufw_final
+  changed_when: false
+  become: true
+
+- name: Display UFW status
+  ansible.builtin.debug:
+    var: ufw_final.stdout_lines
+
+# ── 10. Verification ─────────────────────────────────────────
+- name: Wait for zabbix-server to start
+  ansible.builtin.wait_for:
+    port: 10051
+    host: 127.0.0.1
+    timeout: 30
+    delay: 5
+
+- name: Verify zabbix-server is running
+  ansible.builtin.systemd:
+    name: zabbix-server
+  register: zabbix_service
+  become: true
+
+- name: Assert zabbix-server is active
+  ansible.builtin.assert:
+    that:
+      - zabbix_service.status.ActiveState == "active"
+    fail_msg: "zabbix-server is not running"
+
+- name: Verify Zabbix web UI responds on HTTPS
+  ansible.builtin.uri:
+    url: "https://127.0.0.1/"
+    validate_certs: false
+    status_code: [200, 302]
+  register: zabbix_web_check
+
+- name: Display Zabbix web UI status
+  ansible.builtin.debug:
+    msg: "Zabbix Web UI HTTPS status: {{ zabbix_web_check.status }}"
