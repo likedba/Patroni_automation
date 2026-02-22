@@ -178,20 +178,30 @@
   become: true
 
 # ── 7. Patch pg4wp driver for Patroni ────────────────────────
-- name: Patch pg4wp - insert target_session_attrs before pg_connstr build
-  ansible.builtin.lineinfile:
-    path: /var/www/html/wp-content/pg4wp/driver_pgsql.php
-    line: "    $GLOBALS['pg4wp_connstr'] .= ' target_session_attrs=read-write connect_timeout=3';"
-    insertbefore: "\\$pg_connstr = \\$GLOBALS\\['pg4wp_connstr'\\]"
-    state: present
-  become: true
-
-- name: Patch pg4wp - insert Patroni comment above connection patch
-  ansible.builtin.lineinfile:
-    path: /var/www/html/wp-content/pg4wp/driver_pgsql.php
-    line: "    // Patroni: connect only to primary (read-write) + faster failover"
-    insertbefore: "target_session_attrs=read-write"
-    state: present
+#   Patch both wpsqli_real_connect() and wpsqli_select_db() so that
+#   EVERY connection path uses target_session_attrs=read-write.
+- name: Patch pg4wp driver for Patroni primary-only connections
+  ansible.builtin.shell: |
+    DRIVER="/var/www/html/wp-content/pg4wp/driver_pgsql.php"
+    if grep -q "Patroni: connect only to primary" "$DRIVER"; then
+      echo "already_patched"
+      exit 0
+    fi
+    perl -0777 -i -pe '
+    # 1) wpsqli_real_connect(): insert before "// Must connect to a specific database"
+    if (index($_, "function wpsqli_real_connect") >= 0 && index($_, "Patroni: connect only to primary") < 0) {
+      s/(\n\s*\/\/ Must connect to a specific database unlike MySQL)/\n    \/\/ Patroni: connect only to primary (read-write) + faster failover\n    if (strpos(\$GLOBALS["pg4wp_connstr"], "target_session_attrs=") === false) {\n        \$GLOBALS["pg4wp_connstr"] .= " target_session_attrs=read-write connect_timeout=3";\n    }\n$1/s;
+    }
+    # 2) wpsqli_select_db(): insert after opening brace
+    if (index($_, "function wpsqli_select_db") >= 0 && $_ !~ /function wpsqli_select_db.*?target_session_attrs=/s) {
+      s/(function wpsqli_select_db.*?\{\n)/$1    \/\/ Patroni: connect only to primary (read-write) + faster failover\n    if (strpos(\$GLOBALS["pg4wp_connstr"], "target_session_attrs=") === false) {\n        \$GLOBALS["pg4wp_connstr"] .= " target_session_attrs=read-write connect_timeout=3";\n    }\n/s;
+    }
+    ' "$DRIVER"
+    echo "patched"
+  args:
+    executable: /bin/bash
+  register: pg4wp_patch
+  changed_when: "'patched' in pg4wp_patch.stdout"
   become: true
 
 - name: Verify pg4wp patch applied
