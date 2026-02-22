@@ -5,6 +5,7 @@
 # Run all:          ansible-playbook playbooks/deploy_wordpress.yml
 # NFS only:         ansible-playbook playbooks/deploy_wordpress.yml --tags nfs
 # Backends only:    ansible-playbook playbooks/deploy_wordpress.yml --tags backends
+# Frontend only:    ansible-playbook playbooks/deploy_wordpress.yml --tags frontend
 # ─────────────────────────────────────────────────────────────
 
 - name: Ensure WordPress passwords exist in Vault
@@ -61,3 +62,58 @@
     - name: Configure WordPress backend
       include_role:
         name: wordpress_backend
+
+- name: Deploy nginx frontend (reverse proxy + SSL)
+  hosts: nginx_frontend
+  gather_facts: false
+  become: true
+  tags: [frontend]
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Configure nginx frontend
+      include_role:
+        name: nginx_frontend
+
+# ─────────────────────────────────────────────────────────────
+# VERIFY: smoke test from control node
+# ─────────────────────────────────────────────────────────────
+- name: Verify WordPress stack is working
+  hosts: localhost
+  gather_facts: false
+  tags: [always]
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Test HTTP → HTTPS redirect
+      ansible.builtin.uri:
+        url: "http://{{ wp_frontend_ip }}/"
+        follow_redirects: none
+        status_code: 301
+      register: http_check
+
+    - name: Show HTTP redirect result
+      ansible.builtin.debug:
+        msg: "HTTP redirect: {{ http_check.status }} → {{ http_check.location }}"
+
+    - name: Test HTTPS endpoint
+      ansible.builtin.uri:
+        url: "{{ wp_site_url }}/"
+        validate_certs: false
+        status_code: [200, 302]
+      register: https_check
+
+    - name: Show HTTPS result
+      ansible.builtin.debug:
+        msg: "HTTPS status: {{ https_check.status }}, X-Frontend: {{ https_check.x_frontend | default('not set') }}"

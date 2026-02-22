@@ -1,0 +1,111 @@
+---
+# ── 1. Packages ──────────────────────────────────────────────
+- name: Install nginx and openssl
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - openssl
+    state: present
+    update_cache: true
+  become: true
+
+# ── 2. Self-signed SSL certificate ──────────────────────────
+- name: Create SSL directory
+  ansible.builtin.file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  become: true
+
+- name: Check if SSL certificate already exists
+  ansible.builtin.stat:
+    path: /etc/nginx/ssl/wordpress-front.crt
+  register: ssl_cert
+
+- name: Generate self-signed SSL certificate
+  ansible.builtin.command:
+    cmd: >
+      openssl req -x509 -nodes -newkey rsa:4096 -days 3650
+      -keyout /etc/nginx/ssl/wordpress-front.key
+      -out /etc/nginx/ssl/wordpress-front.crt
+      -subj "/C=FI/L=Helsinki/O=infra/OU=wordpress/CN={{ inventory_hostname }}.{{ domain }}"
+  when: not ssl_cert.stat.exists
+  changed_when: true
+  become: true
+
+- name: Set SSL key permissions
+  ansible.builtin.file:
+    path: /etc/nginx/ssl/wordpress-front.key
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+
+# ── 3. Nginx frontend configuration ─────────────────────────
+- name: Deploy nginx frontend site config
+  ansible.builtin.template:
+    src: nginx-frontend.conf.j2
+    dest: /etc/nginx/sites-available/wordpress-frontend
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: restart nginx
+
+- name: Enable WordPress frontend nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/wordpress-frontend
+    dest: /etc/nginx/sites-enabled/wordpress-frontend
+    state: link
+  become: true
+  notify: restart nginx
+
+- name: Remove nginx default site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: true
+  notify: restart nginx
+
+- name: Start and enable nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: true
+  become: true
+
+- name: Flush handlers (restart nginx with new config)
+  ansible.builtin.meta: flush_handlers
+
+# ── 4. UFW firewall ──────────────────────────────────────────
+- name: Check UFW status
+  ansible.builtin.command:
+    cmd: ufw status
+  register: ufw_status
+  changed_when: false
+  become: true
+
+- name: Configure UFW firewall rules
+  ansible.builtin.shell: |
+    ufw default deny incoming
+    ufw default allow outgoing
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    ufw allow 22/tcp
+    ufw --force enable
+  when: "'443' not in ufw_status.stdout"
+  changed_when: true
+  become: true
+
+- name: Show UFW status
+  ansible.builtin.command:
+    cmd: ufw status verbose
+  register: ufw_final
+  changed_when: false
+  become: true
+
+- name: Display UFW status
+  ansible.builtin.debug:
+    var: ufw_final.stdout_lines
