@@ -1,37 +1,24 @@
 ---
-# ── 1. Grafana APT repository ────────────────────────────────
-- name: Ensure keyrings directory exists
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: "0755"
-  become: true
+# ── 1. Install Grafana ───────────────────────────────────────
+- name: Check if Grafana is already installed
+  ansible.builtin.command:
+    cmd: dpkg -l grafana
+  register: grafana_installed
+  failed_when: false
+  changed_when: false
 
-- name: Check if Grafana GPG key already exists
-  ansible.builtin.stat:
-    path: /etc/apt/keyrings/grafana.gpg
-  register: grafana_gpg
+- name: Download Grafana OSS deb package
+  ansible.builtin.get_url:
+    url: https://dl.grafana.com/oss/release/grafana_11.5.1_amd64.deb
+    dest: /tmp/grafana.deb
+    mode: "0644"
+  when: grafana_installed.rc != 0
 
-- name: Download and install Grafana GPG key
-  ansible.builtin.shell: |
-    wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor -o /etc/apt/keyrings/grafana.gpg
-  when: not grafana_gpg.stat.exists
-  changed_when: true
-  become: true
-
-- name: Add Grafana APT repository
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
-    state: present
-    filename: grafana
-  become: true
-
-# ── 2. Install Grafana ───────────────────────────────────────
 - name: Install Grafana OSS
   ansible.builtin.apt:
-    name: grafana
+    deb: /tmp/grafana.deb
     state: present
-    update_cache: true
+  when: grafana_installed.rc != 0
   become: true
 
 # ── 3. Self-signed SSL certificate ───────────────────────────
