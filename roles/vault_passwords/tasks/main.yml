@@ -17,7 +17,8 @@
       wp_admin_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
       zabbix_db_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
       grafana_db_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
-      zbx_monitor_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
+      zbx_monitor_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
+      zabbix_admin_pass=zabbix
   when: vault_check.rc != 0
   changed_when: true
 
@@ -105,4 +106,20 @@
     vault kv patch secret/patroni_dpl/{{ project_name }}/ \
       zbx_monitor_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
   when: vault_check.rc == 0 and vault_zbx_monitor_check.rc != 0
+  changed_when: true
+
+# Ensure zabbix_admin_pass exists (Zabbix web UI Admin password)
+- name: Check if zabbix_admin_pass exists in Vault
+  ansible.builtin.command:
+    cmd: vault kv get -field=zabbix_admin_pass secret/patroni_dpl/{{ project_name }}/
+  register: vault_zabbix_admin_check
+  failed_when: false
+  changed_when: false
+  when: vault_check.rc == 0
+
+- name: Add zabbix_admin_pass to existing Vault entry
+  ansible.builtin.shell: |
+    vault kv patch secret/patroni_dpl/{{ project_name }}/ \
+      zabbix_admin_pass=zabbix
+  when: vault_check.rc == 0 and vault_zabbix_admin_check.rc != 0
   changed_when: true

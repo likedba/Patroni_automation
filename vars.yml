@@ -114,3 +114,62 @@ monitoring_databases:
 zabbix_db_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zabbix_db_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
 grafana_db_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=grafana_db_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
 zbx_monitor_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zbx_monitor_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
+zabbix_admin_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zabbix_admin_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
+
+# =========================
+# Zabbix host registration
+# =========================
+zabbix_host_groups:
+  - "Linux servers"
+  - "Patroni Cluster"
+  - "Web Frontend"
+  - "WordPress Backends"
+  - "NFS Servers"
+  - "DNS"
+  - "Monitoring Stack"
+
+zabbix_hosts:
+  - name: vmpatronidb-1
+    ip: "192.168.1.135"
+    groups: ["Linux servers", "Patroni Cluster"]
+    templates: ["Linux by Zabbix agent 2", "PostgreSQL by Zabbix agent 2"]
+  - name: vmpatronidb-2
+    ip: "192.168.1.136"
+    groups: ["Linux servers", "Patroni Cluster"]
+    templates: ["Linux by Zabbix agent 2", "PostgreSQL by Zabbix agent 2"]
+  - name: vmpatronidb-3
+    ip: "192.168.1.137"
+    groups: ["Linux servers", "Patroni Cluster"]
+    templates: ["Linux by Zabbix agent 2", "PostgreSQL by Zabbix agent 2"]
+  - name: vmubuntu-1
+    ip: "192.168.1.141"
+    groups: ["Linux servers", "Web Frontend"]
+    templates: ["Linux by Zabbix agent 2"]
+  - name: vmubuntu-2
+    ip: "192.168.1.142"
+    groups: ["Linux servers"]
+    templates: ["Linux by Zabbix agent 2"]
+  - name: vmubuntu-3
+    ip: "192.168.1.143"
+    groups: ["Linux servers", "WordPress Backends"]
+    templates: ["Linux by Zabbix agent 2"]
+  - name: vmubuntu-4
+    ip: "192.168.1.144"
+    groups: ["Linux servers", "WordPress Backends"]
+    templates: ["Linux by Zabbix agent 2"]
+  - name: vmubuntu-5
+    ip: "192.168.1.145"
+    groups: ["Linux servers", "NFS Servers"]
+    templates: ["Linux by Zabbix agent 2"]
+  - name: vmubuntu-6
+    ip: "192.168.1.146"
+    groups: ["Linux servers", "DNS"]
+    templates: ["Linux by Zabbix agent 2"]
+  - name: vmubuntu-7
+    ip: "192.168.1.147"
+    groups: ["Linux servers"]
+    templates: ["Linux by Zabbix agent 2"]
+  - name: vmubuntu-8
+    ip: "192.168.1.148"
+    groups: ["Linux servers", "Monitoring Stack"]
+    templates: ["Linux by Zabbix agent 2"]
