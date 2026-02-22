@@ -6,6 +6,7 @@
   register: grafana_installed
   failed_when: false
   changed_when: false
+  become: false
 
 - name: Download Grafana OSS deb package
   ansible.builtin.get_url:
@@ -13,6 +14,7 @@
     dest: /tmp/grafana.deb
     mode: "0644"
   when: grafana_installed.rc != 0
+  become: false
 
 - name: Install Grafana OSS
   ansible.builtin.apt:
