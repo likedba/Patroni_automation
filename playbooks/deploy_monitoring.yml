@@ -76,17 +76,10 @@
   gather_facts: false
   become: true
   tags: [grafana]
-  pre_tasks:
-    - name: Load project variables
-      include_vars:
-        file: "{{ playbook_dir }}/../vars.yml"
-      become: false
-
-    - name: Set become password from vault
-      set_fact:
-        ansible_become_password: "{{ aleksei_user_pass }}"
-      become: false
-      no_log: true
+  vars_files:
+    - "{{ playbook_dir }}/../vars.yml"
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
   tasks:
     - name: Install and configure Grafana
       include_role:
