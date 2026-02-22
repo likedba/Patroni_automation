@@ -114,7 +114,7 @@
         name: zabbix_agent2
 
 - name: Register hosts in Zabbix via API
-  hosts: localhost
+  hosts: zabbix_api
   gather_facts: false
   tags: [register]
   tasks:

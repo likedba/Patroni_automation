@@ -4,14 +4,11 @@
   ansible.builtin.pip:
     name: zabbix_utils
     state: present
+  delegate_to: localhost
 
 # ── 2. Create host groups ──────────────────────────────────
 - name: Create Zabbix host groups
   community.zabbix.zabbix_group:
-    server_url: "https://{{ monitoring_host_ip }}"
-    login_user: "Admin"
-    login_password: "{{ zabbix_admin_pass }}"
-    validate_certs: false
     host_groups:
       - "{{ item }}"
     state: present
@@ -20,10 +17,6 @@
 # ── 3. Register hosts ─────────────────────────────────────
 - name: Register hosts in Zabbix
   community.zabbix.zabbix_host:
-    server_url: "https://{{ monitoring_host_ip }}"
-    login_user: "Admin"
-    login_password: "{{ zabbix_admin_pass }}"
-    validate_certs: false
     host_name: "{{ item.name }}"
     host_groups: "{{ item.groups }}"
     link_templates: "{{ item.templates }}"
