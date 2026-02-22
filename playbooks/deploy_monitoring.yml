@@ -117,11 +117,16 @@
   hosts: zabbix_api
   gather_facts: false
   tags: [register]
-  tasks:
+  pre_tasks:
     - name: Load project variables
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
 
+    - name: Set Zabbix API password
+      set_fact:
+        ansible_httpapi_pass: "{{ zabbix_admin_pass }}"
+      no_log: true
+  tasks:
     - name: Register hosts in Zabbix
       include_role:
         name: zabbix_register
