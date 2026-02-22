@@ -88,3 +88,14 @@ replicator_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=replica
 postgres_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=postgres_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
 rewind_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=rewind_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
 app_user_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=' ~ app_user ~ '_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
+wp_admin_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=wp_admin_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
+
+# =========================
+# NFS / WordPress infra
+# =========================
+nfs_server_ip: "{{ infra_vms | selectattr('name', 'equalto', 'vmubuntu-5') | map(attribute='ip') | first }}"
+wp_frontend_ip: "{{ infra_vms | selectattr('name', 'equalto', 'vmubuntu-1') | map(attribute='ip') | first }}"
+wp_site_url: "https://{{ wp_frontend_ip }}"
+wp_site_title: "Aleksei's Project"
+wp_admin_user: "aleksei"
+wp_admin_email: "a.salugin@gmail.com"

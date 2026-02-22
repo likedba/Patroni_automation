@@ -1,0 +1,327 @@
+---
+# ── 1. System packages ───────────────────────────────────────
+- name: Install WordPress backend packages
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - php8.3-fpm
+      - php8.3-pgsql
+      - php8.3-curl
+      - php8.3-gd
+      - php8.3-mbstring
+      - php8.3-xml
+      - php8.3-xmlrpc
+      - php8.3-soap
+      - php8.3-intl
+      - php8.3-zip
+      - php8.3-mysql
+      - postgresql-client
+      - nfs-common
+      - unzip
+      - curl
+      - git
+      - net-tools
+    state: present
+    update_cache: true
+  become: true
+
+- name: Start and enable php8.3-fpm
+  ansible.builtin.systemd:
+    name: php8.3-fpm
+    state: started
+    enabled: true
+  become: true
+
+# ── 2. Web root ──────────────────────────────────────────────
+- name: Create web root directory
+  ansible.builtin.file:
+    path: /var/www/html
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+  become: true
+
+# ── 3. NFS mount ─────────────────────────────────────────────
+- name: Create wp-content/uploads mount point
+  ansible.builtin.file:
+    path: /var/www/html/wp-content/uploads
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+  become: true
+
+- name: Add NFS mount to /etc/fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: "{{ nfs_server_ip }}:/srv/nfs/wordpress/uploads"
+    line: "{{ nfs_server_ip }}:/srv/nfs/wordpress/uploads /var/www/html/wp-content/uploads nfs vers=4,defaults,noatime,_netdev,nofail,x-systemd.automount 0 0"
+    state: present
+  become: true
+  notify: daemon-reload
+
+- name: Flush handlers (daemon-reload before mount)
+  ansible.builtin.meta: flush_handlers
+
+- name: Mount all filesystems from fstab
+  ansible.builtin.command:
+    cmd: mount -a
+  changed_when: false
+  become: true
+
+# ── 4. Verify NFS mount ─────────────────────────────────────
+- name: Verify NFS mount
+  ansible.builtin.shell: df -h | grep nfs
+  register: nfs_verify
+  changed_when: false
+  become: false
+
+- name: Show NFS mount status
+  ansible.builtin.debug:
+    var: nfs_verify.stdout_lines
+
+# ── 5. WordPress deployment ──────────────────────────────────
+- name: Check if WordPress is already deployed
+  ansible.builtin.stat:
+    path: /var/www/html/wp-includes/version.php
+  register: wp_deployed
+
+- name: Download WordPress
+  ansible.builtin.get_url:
+    url: https://wordpress.org/latest.tar.gz
+    dest: /tmp/wordpress-latest.tar.gz
+    mode: "0644"
+  when: not wp_deployed.stat.exists
+
+- name: Extract WordPress archive
+  ansible.builtin.unarchive:
+    src: /tmp/wordpress-latest.tar.gz
+    dest: /tmp/
+    remote_src: true
+  when: not wp_deployed.stat.exists
+
+- name: Copy WordPress files to web root
+  ansible.builtin.shell: |
+    cp -r /tmp/wordpress/* /var/www/html/
+    cp /tmp/wordpress/.htaccess /var/www/html/ 2>/dev/null || true
+  when: not wp_deployed.stat.exists
+  changed_when: true
+  become: true
+
+- name: Set WordPress ownership
+  ansible.builtin.file:
+    path: /var/www/html
+    owner: www-data
+    group: www-data
+    recurse: true
+  become: true
+
+- name: Set WordPress directory permissions
+  ansible.builtin.shell: find /var/www/html -type d -exec chmod 755 {} \;
+  changed_when: false
+  become: true
+
+- name: Set WordPress file permissions
+  ansible.builtin.shell: find /var/www/html -type f -exec chmod 644 {} \;
+  changed_when: false
+  become: true
+
+- name: Ensure uploads directory is writable
+  ansible.builtin.file:
+    path: /var/www/html/wp-content/uploads
+    mode: "0755"
+  become: true
+
+# ── 6. pg4wp plugin ──────────────────────────────────────────
+- name: Check if pg4wp plugin is already deployed
+  ansible.builtin.stat:
+    path: /var/www/html/wp-content/pg4wp/driver_pgsql.php
+  register: pg4wp_deployed
+
+- name: Download pg4wp plugin
+  ansible.builtin.get_url:
+    url: https://github.com/PostgreSQL-For-Wordpress/postgresql-for-wordpress/archive/refs/tags/v3.3.1.tar.gz
+    dest: /tmp/pg4wp-v3.3.1.tar.gz
+    mode: "0644"
+  when: not pg4wp_deployed.stat.exists
+
+- name: Extract pg4wp archive
+  ansible.builtin.unarchive:
+    src: /tmp/pg4wp-v3.3.1.tar.gz
+    dest: /tmp/
+    remote_src: true
+  when: not pg4wp_deployed.stat.exists
+
+- name: Create pg4wp directory
+  ansible.builtin.file:
+    path: /var/www/html/wp-content/pg4wp
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+  become: true
+
+- name: Copy pg4wp files to wp-content
+  ansible.builtin.shell: |
+    cp -r /tmp/postgresql-for-wordpress-3.3.1/pg4wp/* /var/www/html/wp-content/pg4wp/
+  when: not pg4wp_deployed.stat.exists
+  changed_when: true
+  become: true
+
+- name: Set pg4wp ownership
+  ansible.builtin.file:
+    path: /var/www/html/wp-content/pg4wp
+    owner: www-data
+    group: www-data
+    recurse: true
+  become: true
+
+# ── 7. Patch pg4wp driver for Patroni ────────────────────────
+- name: Patch pg4wp - insert target_session_attrs before pg_connstr build
+  ansible.builtin.lineinfile:
+    path: /var/www/html/wp-content/pg4wp/driver_pgsql.php
+    line: "    $GLOBALS['pg4wp_connstr'] .= ' target_session_attrs=read-write connect_timeout=3';"
+    insertbefore: "\\$pg_connstr = \\$GLOBALS\\['pg4wp_connstr'\\]"
+    state: present
+  become: true
+
+- name: Patch pg4wp - insert Patroni comment above connection patch
+  ansible.builtin.lineinfile:
+    path: /var/www/html/wp-content/pg4wp/driver_pgsql.php
+    line: "    // Patroni: connect only to primary (read-write) + faster failover"
+    insertbefore: "target_session_attrs=read-write"
+    state: present
+  become: true
+
+- name: Verify pg4wp patch applied
+  ansible.builtin.shell: grep -n "target_session_attrs=read-write" /var/www/html/wp-content/pg4wp/driver_pgsql.php
+  register: pg4wp_patch_check
+  changed_when: false
+  become: true
+
+- name: Show pg4wp patch verification
+  ansible.builtin.debug:
+    var: pg4wp_patch_check.stdout_lines
+
+# ── 8. WordPress configuration ───────────────────────────────
+- name: Deploy wp-config.php
+  ansible.builtin.template:
+    src: wp-config.php.j2
+    dest: /var/www/html/wp-config.php
+    owner: www-data
+    group: www-data
+    mode: "0644"
+  become: true
+
+- name: Copy pg4wp db.php to wp-content
+  ansible.builtin.copy:
+    src: /var/www/html/wp-content/pg4wp/db.php
+    dest: /var/www/html/wp-content/db.php
+    remote_src: true
+    owner: www-data
+    group: www-data
+    mode: "0644"
+  become: true
+  notify: restart php8.3-fpm
+
+# ── 9. Nginx backend configuration ──────────────────────────
+- name: Deploy nginx backend site config
+  ansible.builtin.template:
+    src: nginx-backend.conf.j2
+    dest: /etc/nginx/sites-available/wordpress-backend
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: reload nginx
+
+- name: Enable WordPress backend nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/wordpress-backend
+    dest: /etc/nginx/sites-enabled/wordpress-backend
+    state: link
+  become: true
+  notify: reload nginx
+
+- name: Remove nginx default site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: true
+  notify: reload nginx
+
+- name: Flush handlers (apply nginx + php-fpm before WP install)
+  ansible.builtin.meta: flush_handlers
+
+# ── 10. WP-CLI ───────────────────────────────────────────────
+- name: Check if WP-CLI is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/wp
+  register: wpcli_stat
+
+- name: Download and install WP-CLI
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+    dest: /usr/local/bin/wp
+    mode: "0755"
+  when: not wpcli_stat.stat.exists
+  become: true
+
+# ── 11. WordPress core install (first backend only) ──────────
+- name: Check if WordPress core is already installed
+  ansible.builtin.command:
+    cmd: wp core is-installed --allow-root --path=/var/www/html
+  register: wp_core_check
+  failed_when: false
+  changed_when: false
+  run_once: true
+  become: true
+
+- name: Install WordPress core
+  ansible.builtin.command:
+    cmd: >
+      wp core install
+      --allow-root
+      --path=/var/www/html
+      --url="{{ wp_site_url }}"
+      --title="{{ wp_site_title }}"
+      --admin_user="{{ wp_admin_user }}"
+      --admin_password="{{ wp_admin_pass }}"
+      --admin_email="{{ wp_admin_email }}"
+  when: wp_core_check.rc != 0
+  run_once: true
+  changed_when: true
+  become: true
+  no_log: true
+
+# ── 12. UFW firewall ─────────────────────────────────────────
+- name: Check UFW status
+  ansible.builtin.command:
+    cmd: ufw status
+  register: ufw_status
+  changed_when: false
+  become: true
+
+- name: Configure UFW firewall rules
+  ansible.builtin.shell: |
+    ufw default deny incoming
+    ufw default allow outgoing
+    ufw allow 22/tcp
+    ufw allow from {{ wp_frontend_ip }} to any port 8080 proto tcp
+    ufw deny 8080/tcp
+    ufw --force enable
+  when: "'8080' not in ufw_status.stdout"
+  changed_when: true
+  become: true
+
+- name: Show UFW status
+  ansible.builtin.command:
+    cmd: ufw status verbose
+  register: ufw_final
+  changed_when: false
+  become: true
+
+- name: Display UFW status
+  ansible.builtin.debug:
+    var: ufw_final.stdout_lines

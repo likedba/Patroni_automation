@@ -1,0 +1,15 @@
+---
+- name: restart php8.3-fpm
+  ansible.builtin.systemd:
+    name: php8.3-fpm
+    state: restarted
+  become: true
+
+- name: reload nginx
+  ansible.builtin.shell: nginx -t && systemctl reload nginx
+  become: true
+
+- name: daemon-reload
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
