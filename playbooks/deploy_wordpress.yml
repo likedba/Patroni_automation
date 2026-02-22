@@ -7,6 +7,19 @@
 # Backends only:    ansible-playbook playbooks/deploy_wordpress.yml --tags backends
 # ─────────────────────────────────────────────────────────────
 
+- name: Ensure WordPress passwords exist in Vault
+  hosts: localhost
+  gather_facts: false
+  tags: [always]
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Ensure vault passwords are up to date
+      include_role:
+        name: vault_passwords
+
 - name: Deploy NFS server for WordPress shared storage
   hosts: nfs_servers
   gather_facts: false
