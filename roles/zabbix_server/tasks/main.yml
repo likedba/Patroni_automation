@@ -206,6 +206,12 @@
     var: ufw_final.stdout_lines
 
 # ── 10. Verification ─────────────────────────────────────────
+- name: Ensure nginx is reloaded before verification
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+  become: true
+
 - name: Wait for zabbix-server to start
   ansible.builtin.wait_for:
     port: 10051
