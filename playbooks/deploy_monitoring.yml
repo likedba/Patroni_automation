@@ -5,12 +5,13 @@
 # Phase 1: PostgreSQL 18 standalone for Zabbix + Grafana
 # Phase 2: Zabbix Server 7.4 + Web (HTTPS)
 # Phase 3: Grafana (HTTPS :3000)
-# Phase 4: zabbix-agent2 on all hosts (future)
+# Phase 4+5: zabbix-agent2 on all hosts + PostgreSQL plugin on DB nodes
 #
 # Run all:            ansible-playbook playbooks/deploy_monitoring.yml
 # PostgreSQL only:    ansible-playbook playbooks/deploy_monitoring.yml --tags postgres
 # Zabbix only:        ansible-playbook playbooks/deploy_monitoring.yml --tags zabbix
 # Grafana only:       ansible-playbook playbooks/deploy_monitoring.yml --tags grafana
+# Agent2 only:        ansible-playbook playbooks/deploy_monitoring.yml --tags agent2
 # ─────────────────────────────────────────────────────────────
 
 - name: Ensure monitoring passwords exist in Vault
@@ -88,3 +89,24 @@
     - name: Install and configure Grafana
       include_role:
         name: grafana
+
+- name: Deploy zabbix-agent2 on all hosts
+  hosts: infra:dns:patroni_nodes
+  gather_facts: false
+  become: true
+  tags: [agent2]
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install and configure zabbix-agent2
+      include_role:
+        name: zabbix_agent2

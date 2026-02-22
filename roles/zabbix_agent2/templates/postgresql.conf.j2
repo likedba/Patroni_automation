@@ -1,0 +1,6 @@
+# Zabbix Agent 2 — PostgreSQL plugin configuration
+# Managed by Ansible — do not edit manually
+
+Plugins.PostgreSQL.Default.Uri=tcp://127.0.0.1:5432
+Plugins.PostgreSQL.Default.User=zbx_monitor
+Plugins.PostgreSQL.Default.Password={{ zbx_monitor_pass }}

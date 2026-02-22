@@ -1,0 +1,135 @@
+---
+# ── 1. Zabbix 7.4 repository ─────────────────────────────────
+- name: Check if Zabbix repository is already configured
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/zabbix.list
+  register: zabbix_repo
+
+- name: Download Zabbix 7.4 repository package
+  ansible.builtin.get_url:
+    url: https://repo.zabbix.com/zabbix/7.4/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.4+ubuntu24.04_all.deb
+    dest: /tmp/zabbix-release.deb
+    mode: "0644"
+  when: not zabbix_repo.stat.exists
+
+- name: Install Zabbix repository package
+  ansible.builtin.apt:
+    deb: /tmp/zabbix-release.deb
+    state: present
+  when: not zabbix_repo.stat.exists
+  become: true
+
+- name: Update apt cache after adding Zabbix repo
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+
+# ── 2. Install zabbix-agent2 ─────────────────────────────────
+- name: Install zabbix-agent2
+  ansible.builtin.apt:
+    name: zabbix-agent2
+    state: present
+  become: true
+
+# ── 3. Deploy agent configuration ────────────────────────────
+- name: Deploy zabbix_agent2.conf
+  ansible.builtin.template:
+    src: zabbix_agent2.conf.j2
+    dest: /etc/zabbix/zabbix_agent2.conf
+    owner: root
+    group: zabbix
+    mode: "0640"
+  become: true
+  notify: restart zabbix-agent2
+
+# ── 4. Start and enable agent ────────────────────────────────
+- name: Start and enable zabbix-agent2
+  ansible.builtin.systemd:
+    name: zabbix-agent2
+    state: started
+    enabled: true
+  become: true
+
+- name: Flush handlers (apply config changes)
+  ansible.builtin.meta: flush_handlers
+
+# ── 5. PostgreSQL plugin (patroni_nodes only) ────────────────
+- name: Install zabbix-agent2-plugin-postgresql
+  ansible.builtin.apt:
+    name: zabbix-agent2-plugin-postgresql
+    state: present
+  become: true
+  when: "'patroni_nodes' in group_names"
+  notify: restart zabbix-agent2
+
+- name: Ensure plugins.d directory exists
+  ansible.builtin.file:
+    path: /etc/zabbix/zabbix_agent2.d/plugins.d
+    state: directory
+    owner: root
+    group: zabbix
+    mode: "0750"
+  become: true
+  when: "'patroni_nodes' in group_names"
+
+- name: Deploy PostgreSQL plugin configuration
+  ansible.builtin.template:
+    src: postgresql.conf.j2
+    dest: /etc/zabbix/zabbix_agent2.d/plugins.d/postgresql.conf
+    owner: root
+    group: zabbix
+    mode: "0640"
+  become: true
+  when: "'patroni_nodes' in group_names"
+  notify: restart zabbix-agent2
+
+# ── 6. Create zbx_monitor user on Patroni cluster ───────────
+- name: Create zbx_monitor user on Patroni cluster
+  ansible.builtin.shell: |
+    sudo -u postgres psql \
+      "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432 dbname=postgres user=postgres target_session_attrs=read-write connect_timeout=3" \
+      -c "DO \$\$ BEGIN CREATE USER zbx_monitor WITH PASSWORD '{{ zbx_monitor_pass }}'; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
+  run_once: true
+  changed_when: false
+  become: true
+  when: "'patroni_nodes' in group_names"
+
+- name: Grant pg_monitor role to zbx_monitor on Patroni cluster
+  ansible.builtin.shell: |
+    sudo -u postgres psql \
+      "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432 dbname=postgres user=postgres target_session_attrs=read-write connect_timeout=3" \
+      -c "GRANT pg_monitor TO zbx_monitor;"
+  run_once: true
+  changed_when: false
+  become: true
+  when: "'patroni_nodes' in group_names"
+
+- name: Flush handlers (restart agent after plugin install)
+  ansible.builtin.meta: flush_handlers
+
+# ── 7. UFW firewall ──────────────────────────────────────────
+- name: Check UFW status
+  ansible.builtin.command:
+    cmd: ufw status
+  register: ufw_status
+  changed_when: false
+  become: true
+
+- name: Allow Zabbix server to connect to agent
+  ansible.builtin.shell: |
+    ufw allow from {{ monitoring_host_ip }} to any port 10050 proto tcp
+  when: "'10050' not in ufw_status.stdout"
+  changed_when: true
+  become: true
+
+# ── 8. Verification ──────────────────────────────────────────
+- name: Test agent ping
+  ansible.builtin.command:
+    cmd: zabbix_agent2 -t agent.ping
+  register: agent_ping
+  changed_when: false
+  become: true
+
+- name: Display agent ping result
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: {{ agent_ping.stdout }}"
