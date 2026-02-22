@@ -138,6 +138,7 @@
     src: /etc/zabbix/nginx.conf
     dest: /etc/nginx/conf.d/zabbix.conf
     state: link
+    force: true
   become: true
   notify: restart nginx
 
