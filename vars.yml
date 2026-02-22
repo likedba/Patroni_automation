@@ -99,3 +99,18 @@ wp_site_url: "https://{{ wp_frontend_ip }}"
 wp_site_title: "Aleksei's Project"
 wp_admin_user: "aleksei"
 wp_admin_email: "a.salugin@gmail.com"
+
+# =========================
+# Monitoring stack (Zabbix + Grafana on vmubuntu-8)
+# =========================
+monitoring_host_ip: "{{ infra_vms | selectattr('name', 'equalto', 'vmubuntu-8') | map(attribute='ip') | first }}"
+monitoring_pg_port: 5432
+monitoring_pg_conf_dir: "/etc/postgresql/18/main"
+
+monitoring_databases:
+  - { name: "zabbix",  owner: "zabbix",  pass_var: "zabbix_db_pass" }
+  - { name: "grafana", owner: "grafana", pass_var: "grafana_db_pass" }
+
+zabbix_db_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zabbix_db_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
+grafana_db_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=grafana_db_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
+zbx_monitor_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zbx_monitor_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"

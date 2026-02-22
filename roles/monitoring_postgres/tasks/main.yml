@@ -1,0 +1,191 @@
+---
+# ── 1. Install PGDG repository ──────────────────────────────
+- name: Install postgresql-common
+  ansible.builtin.apt:
+    name: postgresql-common
+    state: present
+    update_cache: true
+  become: true
+
+- name: Check if PGDG repository is already configured
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/pgdg.list
+  register: pgdg_repo
+
+- name: Add PostgreSQL PGDG repository
+  ansible.builtin.shell:
+    cmd: /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: not pgdg_repo.stat.exists
+  changed_when: true
+  become: true
+
+# ── 2. Install PostgreSQL 18 ────────────────────────────────
+- name: Install PostgreSQL 18 server
+  ansible.builtin.apt:
+    name:
+      - postgresql-18
+      - python3-psycopg2
+    state: present
+    update_cache: true
+  become: true
+
+# ── 3. Deploy custom PostgreSQL configuration ───────────────
+- name: Ensure conf.d directory exists
+  ansible.builtin.file:
+    path: "{{ monitoring_pg_conf_dir }}/conf.d"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0755"
+  become: true
+
+- name: Deploy custom PostgreSQL configuration
+  ansible.builtin.template:
+    src: postgresql_custom.conf.j2
+    dest: "{{ monitoring_pg_conf_dir }}/conf.d/99-monitoring.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  become: true
+  notify: restart postgresql
+
+# ── 4. Deploy pg_hba.conf ───────────────────────────────────
+- name: Deploy pg_hba.conf
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: "{{ monitoring_pg_conf_dir }}/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: "0640"
+  become: true
+  notify: reload postgresql
+
+# ── 5. Ensure PostgreSQL is started and enabled ─────────────
+- name: Start and enable PostgreSQL service
+  ansible.builtin.systemd:
+    name: postgresql
+    state: started
+    enabled: true
+  become: true
+
+- name: Flush handlers to apply config changes
+  ansible.builtin.meta: flush_handlers
+
+# ── 6. Wait for PostgreSQL to be ready ──────────────────────
+- name: Wait for PostgreSQL to accept connections
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ monitoring_pg_port }}"
+    timeout: 30
+    delay: 2
+
+# ── 7. Create application databases and users ───────────────
+- name: Create database users
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c \
+      "DO \$\$ BEGIN CREATE USER {{ item.owner }} WITH PASSWORD '{{ lookup('vars', item.pass_var) }}'; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
+  loop: "{{ monitoring_databases }}"
+  loop_control:
+    label: "{{ item.owner }}"
+  changed_when: false
+  become: true
+
+- name: Check if databases already exist
+  ansible.builtin.shell: |
+    sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='{{ item.name }}'"
+  loop: "{{ monitoring_databases }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: db_checks
+  changed_when: false
+  become: true
+
+- name: Create databases
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "CREATE DATABASE {{ item.item.name }} OWNER {{ item.item.owner }};"
+  loop: "{{ db_checks.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: "'1' not in item.stdout"
+  changed_when: true
+  become: true
+
+# ── 8. Create monitoring user (zbx_monitor) ─────────────────
+- name: Create zbx_monitor user
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c \
+      "DO \$\$ BEGIN CREATE USER zbx_monitor WITH PASSWORD '{{ zbx_monitor_pass }}'; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
+  changed_when: false
+  become: true
+
+- name: Grant pg_monitor role to zbx_monitor
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "GRANT pg_monitor TO zbx_monitor;"
+  changed_when: false
+  become: true
+
+# ── 9. Enable pg_stat_statements extension ───────────────────
+- name: Create pg_stat_statements extension in each database
+  ansible.builtin.shell: |
+    sudo -u postgres psql -d {{ item.name }} -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
+  loop: "{{ monitoring_databases }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: false
+  become: true
+
+# ── 10. Update user passwords (idempotent — always runs) ────
+- name: Update database user passwords
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "ALTER USER {{ item.owner }} WITH PASSWORD '{{ lookup('vars', item.pass_var) }}';"
+  loop: "{{ monitoring_databases }}"
+  loop_control:
+    label: "{{ item.owner }}"
+  changed_when: false
+  no_log: true
+  become: true
+
+- name: Update zbx_monitor password
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "ALTER USER zbx_monitor WITH PASSWORD '{{ zbx_monitor_pass }}';"
+  changed_when: false
+  no_log: true
+  become: true
+
+# ── 11. Verify PostgreSQL is healthy ─────────────────────────
+- name: Verify PostgreSQL cluster status
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "SELECT version();"
+  register: pg_version
+  changed_when: false
+  become: true
+
+- name: Display PostgreSQL version
+  ansible.builtin.debug:
+    msg: "{{ pg_version.stdout_lines }}"
+
+- name: Verify databases exist
+  ansible.builtin.shell: |
+    sudo -u postgres psql -tc "SELECT datname FROM pg_database WHERE datname IN ('zabbix', 'grafana') ORDER BY datname;"
+  register: db_list
+  changed_when: false
+  become: true
+
+- name: Display created databases
+  ansible.builtin.debug:
+    msg: "Monitoring databases: {{ db_list.stdout_lines | map('trim') | select | list }}"
+
+- name: Verify monitoring user has pg_monitor role
+  ansible.builtin.shell: |
+    sudo -u postgres psql -tc "SELECT rolname FROM pg_roles WHERE pg_has_role('zbx_monitor', oid, 'member') AND rolname = 'pg_monitor';"
+  register: monitor_role
+  changed_when: false
+  become: true
+
+- name: Assert zbx_monitor has pg_monitor role
+  ansible.builtin.assert:
+    that:
+      - "'pg_monitor' in monitor_role.stdout"
+    fail_msg: "zbx_monitor user does not have pg_monitor role"

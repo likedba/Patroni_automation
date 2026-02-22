@@ -14,7 +14,10 @@
       rewind_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
       postgres_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
       {{ app_user }}_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
-      wp_admin_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
+      wp_admin_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
+      zabbix_db_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
+      grafana_db_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
+      zbx_monitor_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
   when: vault_check.rc != 0
   changed_when: true
 
@@ -53,4 +56,53 @@
     vault kv patch secret/patroni_dpl/{{ project_name }}/ \
       wp_admin_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
   when: vault_check.rc == 0 and vault_wp_admin_check.rc != 0
+  changed_when: true
+
+# ── Monitoring stack passwords ──────────────────────────────
+# Ensure zabbix_db_pass exists
+- name: Check if zabbix_db_pass exists in Vault
+  ansible.builtin.command:
+    cmd: vault kv get -field=zabbix_db_pass secret/patroni_dpl/{{ project_name }}/
+  register: vault_zabbix_db_check
+  failed_when: false
+  changed_when: false
+  when: vault_check.rc == 0
+
+- name: Add zabbix_db_pass to existing Vault entry
+  ansible.builtin.shell: |
+    vault kv patch secret/patroni_dpl/{{ project_name }}/ \
+      zabbix_db_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
+  when: vault_check.rc == 0 and vault_zabbix_db_check.rc != 0
+  changed_when: true
+
+# Ensure grafana_db_pass exists
+- name: Check if grafana_db_pass exists in Vault
+  ansible.builtin.command:
+    cmd: vault kv get -field=grafana_db_pass secret/patroni_dpl/{{ project_name }}/
+  register: vault_grafana_db_check
+  failed_when: false
+  changed_when: false
+  when: vault_check.rc == 0
+
+- name: Add grafana_db_pass to existing Vault entry
+  ansible.builtin.shell: |
+    vault kv patch secret/patroni_dpl/{{ project_name }}/ \
+      grafana_db_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
+  when: vault_check.rc == 0 and vault_grafana_db_check.rc != 0
+  changed_when: true
+
+# Ensure zbx_monitor_pass exists
+- name: Check if zbx_monitor_pass exists in Vault
+  ansible.builtin.command:
+    cmd: vault kv get -field=zbx_monitor_pass secret/patroni_dpl/{{ project_name }}/
+  register: vault_zbx_monitor_check
+  failed_when: false
+  changed_when: false
+  when: vault_check.rc == 0
+
+- name: Add zbx_monitor_pass to existing Vault entry
+  ansible.builtin.shell: |
+    vault kv patch secret/patroni_dpl/{{ project_name }}/ \
+      zbx_monitor_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
+  when: vault_check.rc == 0 and vault_zbx_monitor_check.rc != 0
   changed_when: true

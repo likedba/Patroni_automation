@@ -1,0 +1,35 @@
+# Custom PostgreSQL settings for monitoring stack
+# Managed by Ansible — do not edit manually
+
+# ── Network ─────────────────────────────────────────────
+listen_addresses = '127.0.0.1'
+port = {{ monitoring_pg_port }}
+
+# ── Memory (tuned for 2 GB RAM VM) ─────────────────────
+shared_buffers = 256MB
+effective_cache_size = 512MB
+work_mem = 8MB
+maintenance_work_mem = 128MB
+
+# ── WAL / Checkpoints ──────────────────────────────────
+max_wal_size = 512MB
+min_wal_size = 128MB
+checkpoint_completion_target = 0.9
+wal_buffers = -1
+
+# ── Logging ─────────────────────────────────────────────
+log_destination = 'stderr'
+logging_collector = on
+log_directory = 'log'
+log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+log_min_duration_statement = 1000
+log_line_prefix = '%m [%p] %q%u@%d '
+log_statement = 'ddl'
+log_connections = on
+log_disconnections = on
+
+# ── Extensions ──────────────────────────────────────────
+shared_preload_libraries = 'pg_stat_statements'
+
+# ── Connections ─────────────────────────────────────────
+max_connections = 150

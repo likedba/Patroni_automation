@@ -1,0 +1,14 @@
+# PostgreSQL Client Authentication Configuration File
+# Managed by Ansible — do not edit manually
+#
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+# Local connections
+local   all             postgres                                peer
+local   all             all                                     scram-sha-256
+
+# IPv4 local loopback
+host    all             all             127.0.0.1/32            scram-sha-256
+
+# IPv6 local loopback
+host    all             all             ::1/128                 scram-sha-256
