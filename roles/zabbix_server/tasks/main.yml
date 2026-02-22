@@ -47,9 +47,11 @@
 
 - name: Import Zabbix database schema
   ansible.builtin.shell: |
-    zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | psql -h 127.0.0.1 -U zabbix -d zabbix
-  environment:
-    PGPASSWORD: "{{ zabbix_db_pass }}"
+    sudo -u zabbix bash -c '
+    export PGPASSWORD="{{ zabbix_db_pass }}"
+    zcat /usr/share/zabbix/sql-scripts/postgresql/server.sql.gz | psql -U zabbix -d zabbix
+    unset PGPASSWORD
+    '
   when: "'1' not in zabbix_schema_check.stdout"
   changed_when: true
   no_log: true
