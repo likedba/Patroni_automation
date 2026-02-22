@@ -1,0 +1,438 @@
+{
+  "uid": "postgresql-metrics",
+  "title": "PostgreSQL Metrics",
+  "tags": ["postgresql", "zabbix", "patroni", "database"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "1m",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "host",
+        "type": "query",
+        "datasource": {
+          "type": "alexanderzobnin-zabbix-datasource",
+          "uid": "PA67C5EADE9207728"
+        },
+        "query": {
+          "queryType": "host",
+          "group": "Patroni Cluster",
+          "host": "/.*/"
+        },
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "PostgreSQL: Connections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL: Connections (sum|active|idle|waiting)/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 2,
+      "title": "PostgreSQL: Transactions per second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL: Transactions.*per second/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 3,
+      "title": "PostgreSQL: Cache hit ratio",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL:.*cache hit ratio/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "min"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 4,
+      "title": "PostgreSQL: Database size",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL.*: Database size/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "PostgreSQL: Tuples returned/fetched per second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL.*: Tuples (returned|fetched) per second/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "PostgreSQL: Tuples inserted/updated/deleted per second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL.*: Tuples (inserted|updated|deleted) per second/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 7,
+      "title": "PostgreSQL: Locks",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL: Locks/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 8,
+      "title": "PostgreSQL: Uptime & Replication lag",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL: Uptime/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        },
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL: Replication.*lag/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["last"] },
+        "colorMode": "background",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 9,
+      "title": "PostgreSQL: WAL write per second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL: WAL.*per second/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 10,
+      "title": "PostgreSQL: Deadlocks per second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "Patroni Cluster" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/PostgreSQL.*: Deadlocks per second/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}

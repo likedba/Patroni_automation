@@ -90,7 +90,40 @@
   become: true
   notify: restart grafana-server
 
-# ── 7. Start and enable Grafana ──────────────────────────────
+# ── 7. Dashboard provisioning ───────────────────────────────
+- name: Ensure dashboards directory exists
+  ansible.builtin.file:
+    path: /var/lib/grafana/dashboards
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: "0755"
+  become: true
+
+- name: Deploy dashboard provisioning config
+  ansible.builtin.template:
+    src: dashboards-provisioning.yml.j2
+    dest: /etc/grafana/provisioning/dashboards/default.yml
+    owner: root
+    group: grafana
+    mode: "0640"
+  become: true
+  notify: restart grafana-server
+
+- name: Deploy dashboard JSON files
+  ansible.builtin.copy:
+    src: "dashboards/{{ item }}"
+    dest: "/var/lib/grafana/dashboards/{{ item }}"
+    owner: grafana
+    group: grafana
+    mode: "0644"
+  become: true
+  loop:
+    - linux-system-metrics.json
+    - postgresql-metrics.json
+  notify: restart grafana-server
+
+# ── 8. Start and enable Grafana ──────────────────────────────
 - name: Start and enable grafana-server
   ansible.builtin.systemd:
     name: grafana-server
