@@ -92,6 +92,8 @@
     key: "{{ postgres_pubkey.content | b64decode }}"
     state: present
   delegate_to: "{{ item }}"
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
   loop:
     - vmpatronidb-1
     - vmpatronidb-2
@@ -104,6 +106,8 @@
     key: "{{ postgres_pubkey.content | b64decode }}"
     state: present
   delegate_to: vmubuntu-8
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
   become: true
 
 - name: Deploy SSH public key to backup server (local)
