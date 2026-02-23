@@ -93,7 +93,7 @@
     state: present
   delegate_to: "{{ item }}"
   vars:
-    ansible_become_password: "{{ aleksei_user_pass }}"
+    ansible_become_password: "{{ hostvars[inventory_hostname].ansible_become_password }}"
   loop:
     - vmpatronidb-1
     - vmpatronidb-2
@@ -107,7 +107,7 @@
     state: present
   delegate_to: vmubuntu-8
   vars:
-    ansible_become_password: "{{ aleksei_user_pass }}"
+    ansible_become_password: "{{ hostvars[inventory_hostname].ansible_become_password }}"
   become: true
 
 - name: Deploy SSH public key to backup server (local)
