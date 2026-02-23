@@ -67,38 +67,69 @@ def make_search(sid, title, kql):
         ]
     })
 
-def make_dashboard(did, title, search1, search2):
-    panels = json.dumps([
-        {
-            "gridData": {"x": 0, "y": 0, "w": 24, "h": 15, "i": "1"},
-            "panelIndex": "1",
-            "panelRefName": "panel_0",
+def make_dashboard(did, title, panels_config):
+    """Create dashboard matching Kibana 8.17 native format."""
+    import uuid
+    panels = []
+    refs = []
+    for i, (search_id, panel_title) in enumerate(panels_config):
+        uid = str(uuid.uuid4())
+        panels.append({
             "type": "search",
-            "embeddableConfig": {"enhancements": {}},
-            "version": "8.17.0"
-        },
-        {
-            "gridData": {"x": 24, "y": 0, "w": 24, "h": 15, "i": "2"},
-            "panelIndex": "2",
-            "panelRefName": "panel_1",
-            "type": "search",
-            "embeddableConfig": {"enhancements": {}},
-            "version": "8.17.0"
-        }
-    ])
+            "title": panel_title,
+            "panelRefName": f"panel_{uid}",
+            "embeddableConfig": {"grid": {}, "enhancements": {}},
+            "panelIndex": uid,
+            "gridData": {
+                "x": (i % 2) * 24,
+                "y": (i // 2) * 15,
+                "w": 24,
+                "h": 15,
+                "i": uid
+            }
+        })
+        refs.append({
+            "id": search_id,
+            "name": f"{uid}:panel_{uid}",
+            "type": "search"
+        })
+
     return json.dumps({
         "id": did,
         "type": "dashboard",
         "attributes": {
             "title": title,
-            "panelsJSON": panels,
+            "description": "",
+            "panelsJSON": json.dumps(panels),
+            "optionsJSON": json.dumps({
+                "useMargins": True,
+                "syncColors": False,
+                "syncCursor": True,
+                "syncTooltips": False,
+                "hidePanelTitles": False
+            }),
+            "controlGroupInput": {
+                "chainingSystem": "HIERARCHICAL",
+                "controlStyle": "oneLine",
+                "ignoreParentSettingsJSON": json.dumps({
+                    "ignoreFilters": False,
+                    "ignoreQuery": False,
+                    "ignoreTimerange": False,
+                    "ignoreValidations": False
+                }),
+                "panelsJSON": "{}",
+                "showApplySelections": False
+            },
+            "kibanaSavedObjectMeta": {
+                "searchSourceJSON": json.dumps({
+                    "query": {"query": "", "language": "kuery"},
+                    "filter": []
+                })
+            },
             "timeRestore": False,
-            "version": 1
+            "version": 3
         },
-        "references": [
-            {"name": "panel_0", "type": "search", "id": search1},
-            {"name": "panel_1", "type": "search", "id": search2}
-        ]
+        "references": refs
     })
 
 # ── Saved Searches ──
@@ -116,13 +147,22 @@ for sid, title, kql in searches:
 
 # ── Dashboards ──
 dashboards = [
-    ("infra-overview", "Infra Logs Overview",          "infra-all",  "infra-errors"),
-    ("db-logs",        "PostgreSQL / Patroni Logs",    "patroni",    "postgres-errors"),
-    ("auth-ssh",       "Auth / SSH Logs",              "auth-all",   "auth-failed"),
+    ("infra-overview", "Infra Logs Overview", [
+        ("infra-all",       "Infra: All logs (latest)"),
+        ("infra-errors",    "Infra: Errors & Warnings"),
+    ]),
+    ("db-logs", "PostgreSQL / Patroni Logs", [
+        ("patroni",         "DB: Patroni logs"),
+        ("postgres-errors", "DB: PostgreSQL ERROR/FATAL/PANIC"),
+    ]),
+    ("auth-ssh", "Auth / SSH Logs", [
+        ("auth-all",        "Auth: /var/log/auth.log"),
+        ("auth-failed",     "Auth: Failed password"),
+    ]),
 ]
 
-for did, title, s1, s2 in dashboards:
-    print(make_dashboard(did, title, s1, s2))
+for did, title, panels in dashboards:
+    print(make_dashboard(did, title, panels))
 PYEOF
 
 OBJ_COUNT=$(wc -l < "$NDJSON")
