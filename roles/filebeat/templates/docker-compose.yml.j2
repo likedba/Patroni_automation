@@ -1,0 +1,20 @@
+# Filebeat — Docker Compose
+# Managed by Ansible — do not edit manually
+
+services:
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:{{ elk_version }}
+    container_name: filebeat
+    user: root
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - filebeat-data:/usr/share/filebeat/data
+      - /var/log:/var/log:ro
+{% if 'patroni_nodes' in group_names %}
+      - /pgdata/18/data/log:/pgdata/18/data/log:ro
+      - /pgdata/patroni:/pgdata/patroni:ro
+{% endif %}
+    restart: unless-stopped
+
+volumes:
+  filebeat-data:

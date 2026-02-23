@@ -2,9 +2,9 @@
 # ─────────────────────────────────────────────────────────────
 # Centralized logging deployment
 #
-# Phase 1: Docker CE on vmubuntu-7
+# Phase 1: Docker CE on all hosts (for Filebeat containers)
 # Phase 2: ELK stack (ES + Logstash + Kibana) via Docker Compose
-# Phase 3: Filebeat on all hosts
+# Phase 3: Filebeat containers on all hosts
 #
 # Run all:         ansible-playbook playbooks/deploy_logging.yml
 # Docker only:     ansible-playbook playbooks/deploy_logging.yml --tags docker
@@ -12,8 +12,8 @@
 # Filebeat only:   ansible-playbook playbooks/deploy_logging.yml --tags filebeat
 # ─────────────────────────────────────────────────────────────
 
-- name: Install Docker on logging host
-  hosts: logging
+- name: Install Docker on all hosts
+  hosts: infra:dns:patroni_nodes
   gather_facts: false
   become: true
   tags: [docker]

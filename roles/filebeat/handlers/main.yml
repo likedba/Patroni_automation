@@ -1,6 +1,7 @@
 ---
 - name: restart filebeat
-  ansible.builtin.systemd:
-    name: filebeat
-    state: restarted
+  ansible.builtin.shell: |
+    docker compose -f /opt/filebeat/docker-compose.yml down
+    docker compose -f /opt/filebeat/docker-compose.yml up -d
   become: true
+  changed_when: true
