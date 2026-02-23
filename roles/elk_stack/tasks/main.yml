@@ -154,3 +154,7 @@
 - name: Display ELK stack status
   ansible.builtin.debug:
     msg: "ELK stack is running — ES:9200, Logstash:5044, Kibana:5601"
+
+# ── 9. Bootstrap Kibana objects ──────────────────────────────
+- name: Bootstrap Kibana Data Views and Dashboards
+  ansible.builtin.include_tasks: kibana_bootstrap.yml

@@ -1,0 +1,47 @@
+---
+# ── Kibana Bootstrap: Data Views + Saved Searches + Dashboards ──
+
+- name: Wait for Kibana API to be ready
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:5601/api/status"
+    method: GET
+    headers:
+      kbn-xsrf: "true"
+    status_code: [200]
+  register: kibana_status
+  retries: 12
+  delay: 10
+  until: kibana_status.status == 200
+
+- name: Copy Kibana bootstrap script
+  ansible.builtin.copy:
+    src: kibana_bootstrap.sh
+    dest: /opt/elk/kibana_bootstrap.sh
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Run Kibana bootstrap script
+  ansible.builtin.command:
+    cmd: bash /opt/elk/kibana_bootstrap.sh
+  register: bootstrap_result
+  changed_when: true
+  become: true
+
+- name: Display bootstrap result
+  ansible.builtin.debug:
+    msg: "{{ bootstrap_result.stdout_lines }}"
+
+- name: Verify dashboards exist via API
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:5601/api/saved_objects/_find?type=dashboard"
+    method: GET
+    headers:
+      kbn-xsrf: "true"
+    return_content: true
+  register: dash_check
+
+- name: Display dashboard count
+  ansible.builtin.debug:
+    msg: "Kibana dashboards: {{ dash_check.json.total }} found"
