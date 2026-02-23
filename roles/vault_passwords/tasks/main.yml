@@ -18,7 +18,8 @@
       zabbix_db_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
       grafana_db_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
       zbx_monitor_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24) \
-      zabbix_admin_pass=zabbix
+      zabbix_admin_pass=zabbix \
+      backup_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
   when: vault_check.rc != 0
   changed_when: true
 
@@ -122,4 +123,20 @@
     vault kv patch secret/patroni_dpl/{{ project_name }}/ \
       zabbix_admin_pass=zabbix
   when: vault_check.rc == 0 and vault_zabbix_admin_check.rc != 0
+  changed_when: true
+
+# ── Backup password (pg_probackup) ────────────────────────────
+- name: Check if backup_pass exists in Vault
+  ansible.builtin.command:
+    cmd: vault kv get -field=backup_pass secret/patroni_dpl/{{ project_name }}/
+  register: vault_backup_check
+  failed_when: false
+  changed_when: false
+  when: vault_check.rc == 0
+
+- name: Add backup_pass to existing Vault entry
+  ansible.builtin.shell: |
+    vault kv patch secret/patroni_dpl/{{ project_name }}/ \
+      backup_pass=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 24)
+  when: vault_check.rc == 0 and vault_backup_check.rc != 0
   changed_when: true

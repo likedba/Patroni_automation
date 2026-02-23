@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# pg_probackup: Patroni cluster backup script
+# Managed by Ansible — do not edit manually
+#
+# Finds the current primary via Patroni REST API, then runs pg_probackup.
+# Usage: bkp_primary.sh [FULL|DELTA|PTRACK]
+
+# -------- Backup mode --------
+BACKUP_MODE="${1:-FULL}"
+
+case "$BACKUP_MODE" in
+  FULL|DELTA|PTRACK) ;;
+  *)
+    echo "Usage: $0 [FULL|DELTA|PTRACK]"
+    exit 1
+    ;;
+esac
+
+echo "Backup mode: $BACKUP_MODE"
+
+# -------- Find primary --------
+PRIMARY_HOST=""
+
+for h in {{ node1_ip }} {{ node2_ip }} {{ node3_ip }}; do
+  echo "Checking $h..."
+
+  if curl -fsS --max-time 2 "http://$h:8008/patroni" | grep -q '"role": "primary"'; then
+    PRIMARY_HOST="$h"
+    echo "Primary found: $PRIMARY_HOST"
+    break
+  fi
+done
+
+if [[ -z "$PRIMARY_HOST" ]]; then
+  echo "ERROR: primary not found (no Patroni API replies with role=primary)."
+  exit 1
+fi
+
+# -------- Run backup --------
+pg_probackup-18 backup \
+  -B /backup/postgres \
+  -D /pgdata/18/data \
+  --instance=patroni \
+  -U backup \
+  -d postgres \
+  -b "$BACKUP_MODE" \
+  --stream \
+  --compress-algorithm=zlib \
+  --compress-level=5 \
+  --delete-expired \
+  --remote-host="$PRIMARY_HOST" \
+  --remote-user=postgres

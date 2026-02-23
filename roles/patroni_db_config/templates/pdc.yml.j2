@@ -58,6 +58,8 @@ postgresql:
   - host all all {{ node1_ip }}/32 scram-sha-256
   - host all all {{ node2_ip }}/32 scram-sha-256
   - host all all {{ node3_ip }}/32 scram-sha-256
+  - host replication backup {{ backup_server_ip }}/32 scram-sha-256
+  - host all backup {{ backup_server_ip }}/32 scram-sha-256
 {% for server in app_servers %}
   - host {{ app_db_name }} {{ app_user }} {{ server.ip }}/32 scram-sha-256
 {% endfor %}

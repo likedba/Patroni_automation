@@ -1,0 +1,387 @@
+---
+# ── 1. Install PostgreSQL 18 + pg_probackup-18 ──────────────
+- name: Install postgresql-common
+  ansible.builtin.apt:
+    name: postgresql-common
+    state: present
+    update_cache: true
+  become: true
+
+- name: Check if PGDG repository is already configured
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/pgdg.list
+  register: pgdg_repo
+
+- name: Add PostgreSQL PGDG repository
+  ansible.builtin.shell:
+    cmd: /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: not pgdg_repo.stat.exists
+  changed_when: true
+  become: true
+
+- name: Install PostgreSQL 18
+  ansible.builtin.apt:
+    name: postgresql-18
+    state: present
+    update_cache: true
+  become: true
+
+- name: Check if pg_probackup repository is configured
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/pg_probackup.list
+  register: probackup_repo
+
+- name: Download pg_probackup GPG key
+  ansible.builtin.shell:
+    cmd: wget -qO - https://repo.postgrespro.ru/pg_probackup/keys/GPG-KEY-PG-PROBACKUP | tee /etc/apt/trusted.gpg.d/pg_probackup.asc
+  when: not probackup_repo.stat.exists
+  changed_when: true
+  become: true
+
+- name: Add pg_probackup repository
+  ansible.builtin.shell:
+    cmd: |
+      . /etc/os-release
+      echo "deb [arch=amd64] https://repo.postgrespro.ru/pg_probackup/deb $VERSION_CODENAME main-$VERSION_CODENAME" > /etc/apt/sources.list.d/pg_probackup.list
+  when: not probackup_repo.stat.exists
+  changed_when: true
+  become: true
+
+- name: Install pg-probackup-18
+  ansible.builtin.apt:
+    name: pg-probackup-18
+    state: present
+    update_cache: true
+  become: true
+
+# ── 2. SSH key for postgres user ─────────────────────────────
+- name: Create .ssh directory for postgres
+  ansible.builtin.file:
+    path: /var/lib/postgresql/.ssh
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0700"
+  become: true
+
+- name: Check if SSH key already exists
+  ansible.builtin.stat:
+    path: /var/lib/postgresql/.ssh/id_ed25519
+  register: ssh_key
+
+- name: Generate SSH key for postgres user
+  ansible.builtin.command:
+    cmd: ssh-keygen -t ed25519 -N '' -f /var/lib/postgresql/.ssh/id_ed25519
+  become: true
+  become_user: postgres
+  when: not ssh_key.stat.exists
+  changed_when: true
+
+- name: Read postgres public key
+  ansible.builtin.slurp:
+    src: /var/lib/postgresql/.ssh/id_ed25519.pub
+  register: postgres_pubkey
+  become: true
+
+# ── 3. Distribute SSH key to DB hosts ────────────────────────
+- name: Deploy SSH public key to patroni nodes
+  ansible.posix.authorized_key:
+    user: postgres
+    key: "{{ postgres_pubkey.content | b64decode }}"
+    state: present
+  delegate_to: "{{ item }}"
+  loop:
+    - vmpatronidb-1
+    - vmpatronidb-2
+    - vmpatronidb-3
+  become: true
+
+- name: Deploy SSH public key to monitoring host
+  ansible.posix.authorized_key:
+    user: postgres
+    key: "{{ postgres_pubkey.content | b64decode }}"
+    state: present
+  delegate_to: vmubuntu-8
+  become: true
+
+- name: Deploy SSH public key to backup server (local)
+  ansible.posix.authorized_key:
+    user: postgres
+    key: "{{ postgres_pubkey.content | b64decode }}"
+    state: present
+  become: true
+
+- name: Accept SSH host keys for patroni nodes
+  ansible.builtin.shell: |
+    ssh-keyscan -H {{ item }} >> /var/lib/postgresql/.ssh/known_hosts
+  loop:
+    - "{{ node1_ip }}"
+    - "{{ node2_ip }}"
+    - "{{ node3_ip }}"
+    - "{{ monitoring_host_ip }}"
+    - "{{ backup_server_ip }}"
+  become: true
+  become_user: postgres
+  changed_when: true
+
+- name: Fix known_hosts permissions
+  ansible.builtin.file:
+    path: /var/lib/postgresql/.ssh/known_hosts
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  become: true
+
+# ── 4. Deploy .pgpass ────────────────────────────────────────
+- name: Deploy .pgpass for backup user
+  ansible.builtin.template:
+    src: pgpass_backup.j2
+    dest: /var/lib/postgresql/.pgpass
+    owner: postgres
+    group: postgres
+    mode: "0600"
+  become: true
+
+# ── 5. Create backup directories ─────────────────────────────
+- name: Create backup directory
+  ansible.builtin.file:
+    path: /backup/postgres
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0750"
+  become: true
+
+# ── 6. Initialize pg_probackup ───────────────────────────────
+- name: Check if pg_probackup is already initialized
+  ansible.builtin.stat:
+    path: /backup/postgres/backups
+  register: probackup_init
+
+- name: Initialize pg_probackup catalog
+  ansible.builtin.command:
+    cmd: pg_probackup-18 init -B /backup/postgres
+  become: true
+  become_user: postgres
+  when: not probackup_init.stat.exists
+  changed_when: true
+
+# ── 7. Add instances ─────────────────────────────────────────
+- name: Check existing pg_probackup instances
+  ansible.builtin.command:
+    cmd: pg_probackup-18 show -B /backup/postgres --format=json
+  register: probackup_instances
+  become: true
+  become_user: postgres
+  changed_when: false
+  failed_when: false
+
+- name: Add patroni instance
+  ansible.builtin.command:
+    cmd: >
+      pg_probackup-18 add-instance
+      -B /backup/postgres
+      -D /pgdata/18/data
+      --instance=patroni
+      --remote-host={{ node1_ip }}
+      --remote-user=postgres
+  become: true
+  become_user: postgres
+  when: "'patroni' not in probackup_instances.stdout"
+  changed_when: true
+
+- name: Add monitoring instance
+  ansible.builtin.command:
+    cmd: >
+      pg_probackup-18 add-instance
+      -B /backup/postgres
+      -D /var/lib/postgresql/18/main
+      --instance=monitoring
+      --remote-host={{ monitoring_host_ip }}
+      --remote-user=postgres
+  become: true
+  become_user: postgres
+  when: "'monitoring' not in probackup_instances.stdout"
+  changed_when: true
+
+# ── 8. Deploy backup script ─────────────────────────────────
+- name: Deploy patroni backup script
+  ansible.builtin.template:
+    src: bkp_primary.sh.j2
+    dest: /backup/bkp_primary.sh
+    owner: postgres
+    group: postgres
+    mode: "0755"
+  become: true
+
+# ── 9. Set retention policy ──────────────────────────────────
+- name: Set retention policy for patroni instance
+  ansible.builtin.command:
+    cmd: >
+      pg_probackup-18 set-config
+      -B /backup/postgres
+      --instance=patroni
+      --retention-redundancy=2
+      --retention-window=7
+  become: true
+  become_user: postgres
+  changed_when: true
+
+- name: Set retention policy for monitoring instance
+  ansible.builtin.command:
+    cmd: >
+      pg_probackup-18 set-config
+      -B /backup/postgres
+      --instance=monitoring
+      --retention-redundancy=2
+      --retention-window=7
+  become: true
+  become_user: postgres
+  changed_when: true
+
+# ── 10. First FULL backup ────────────────────────────────────
+- name: Check if patroni backup already exists
+  ansible.builtin.command:
+    cmd: pg_probackup-18 show -B /backup/postgres --instance=patroni --format=json
+  register: patroni_backups
+  become: true
+  become_user: postgres
+  changed_when: false
+  failed_when: false
+
+- name: Run first FULL backup for patroni (via bkp_primary.sh)
+  ansible.builtin.command:
+    cmd: /backup/bkp_primary.sh FULL
+  become: true
+  become_user: postgres
+  when: "'FULL' not in patroni_backups.stdout"
+  changed_when: true
+  register: patroni_backup_result
+  timeout: 600
+
+- name: Display patroni backup result
+  ansible.builtin.debug:
+    msg: "{{ patroni_backup_result.stdout_lines | default(['Backup already exists']) }}"
+
+- name: Check if monitoring backup already exists
+  ansible.builtin.command:
+    cmd: pg_probackup-18 show -B /backup/postgres --instance=monitoring --format=json
+  register: monitoring_backups
+  become: true
+  become_user: postgres
+  changed_when: false
+  failed_when: false
+
+- name: Run first FULL backup for monitoring
+  ansible.builtin.command:
+    cmd: >
+      pg_probackup-18 backup
+      -B /backup/postgres
+      -D /var/lib/postgresql/18/main
+      --instance=monitoring
+      -U backup
+      -d postgres
+      -b FULL
+      --stream
+      --compress-algorithm=zlib
+      --compress-level=5
+      --delete-expired
+      --remote-host={{ monitoring_host_ip }}
+      --remote-user=postgres
+  become: true
+  become_user: postgres
+  when: "'FULL' not in monitoring_backups.stdout"
+  changed_when: true
+  register: monitoring_backup_result
+  timeout: 600
+
+- name: Display monitoring backup result
+  ansible.builtin.debug:
+    msg: "{{ monitoring_backup_result.stdout_lines | default(['Backup already exists']) }}"
+
+# ── 11. Crontab ──────────────────────────────────────────────
+- name: "Cron: FULL backup monitoring (Saturday 01:00)"
+  ansible.builtin.cron:
+    name: "pg_probackup FULL monitoring"
+    user: postgres
+    minute: "0"
+    hour: "1"
+    weekday: "6"
+    job: >-
+      pg_probackup-18 backup -B /backup/postgres -D /var/lib/postgresql/18/main
+      --instance=monitoring -U backup -d postgres -b FULL --stream
+      --compress-algorithm=zlib --compress-level=5 --delete-expired
+      --remote-host={{ monitoring_host_ip }} --remote-user=postgres &> /dev/null
+  become: true
+
+- name: "Cron: FULL backup patroni (Saturday 01:00)"
+  ansible.builtin.cron:
+    name: "pg_probackup FULL patroni"
+    user: postgres
+    minute: "0"
+    hour: "1"
+    weekday: "6"
+    job: "/backup/bkp_primary.sh FULL &> /dev/null"
+  become: true
+
+- name: "Cron: DELTA backup monitoring (daily except Saturday 01:00)"
+  ansible.builtin.cron:
+    name: "pg_probackup DELTA monitoring"
+    user: postgres
+    minute: "0"
+    hour: "1"
+    weekday: "0,1,2,3,4,5"
+    job: >-
+      pg_probackup-18 backup -B /backup/postgres -D /var/lib/postgresql/18/main
+      --instance=monitoring -U backup -d postgres -b DELTA --stream
+      --compress-algorithm=zlib --compress-level=5 --delete-expired
+      --remote-host={{ monitoring_host_ip }} --remote-user=postgres &> /dev/null
+  become: true
+
+- name: "Cron: DELTA backup patroni (daily except Saturday 08:00)"
+  ansible.builtin.cron:
+    name: "pg_probackup DELTA patroni"
+    user: postgres
+    minute: "0"
+    hour: "8"
+    weekday: "0,1,2,3,4,5"
+    job: "/backup/bkp_primary.sh DELTA &> /dev/null"
+  become: true
+
+# ── 12. Verification ─────────────────────────────────────────
+- name: Show patroni backup status
+  ansible.builtin.command:
+    cmd: pg_probackup-18 show -B /backup/postgres --instance=patroni
+  register: patroni_show
+  become: true
+  become_user: postgres
+  changed_when: false
+
+- name: Display patroni backup status
+  ansible.builtin.debug:
+    msg: "{{ patroni_show.stdout_lines }}"
+
+- name: Show monitoring backup status
+  ansible.builtin.command:
+    cmd: pg_probackup-18 show -B /backup/postgres --instance=monitoring
+  register: monitoring_show
+  become: true
+  become_user: postgres
+  changed_when: false
+
+- name: Display monitoring backup status
+  ansible.builtin.debug:
+    msg: "{{ monitoring_show.stdout_lines }}"
+
+- name: Show postgres crontab
+  ansible.builtin.command:
+    cmd: crontab -l -u postgres
+  register: cron_show
+  become: true
+  changed_when: false
+
+- name: Display crontab
+  ansible.builtin.debug:
+    msg: "{{ cron_show.stdout_lines }}"

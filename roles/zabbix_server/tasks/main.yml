@@ -190,8 +190,16 @@
     ufw allow 80/tcp
     ufw allow 443/tcp
     ufw allow 10051/tcp
+    ufw allow 5432/tcp
     ufw --force enable
   when: "'10051' not in ufw_status.stdout"
+  changed_when: true
+  become: true
+
+- name: Allow PostgreSQL port for pg_probackup
+  ansible.builtin.shell: |
+    ufw allow 5432/tcp
+  when: "'5432' not in ufw_status.stdout and '10051' in ufw_status.stdout"
   changed_when: true
   become: true
 

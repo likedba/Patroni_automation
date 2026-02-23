@@ -31,6 +31,35 @@
     update_cache: true
   become: true
 
+# ── 2a. Install pg_probackup-18 (for remote backup agent) ──
+- name: Check if pg_probackup repository is configured
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/pg_probackup.list
+  register: probackup_repo
+
+- name: Download pg_probackup GPG key
+  ansible.builtin.shell:
+    cmd: wget -qO - https://repo.postgrespro.ru/pg_probackup/keys/GPG-KEY-PG-PROBACKUP | tee /etc/apt/trusted.gpg.d/pg_probackup.asc
+  when: not probackup_repo.stat.exists
+  changed_when: true
+  become: true
+
+- name: Add pg_probackup repository
+  ansible.builtin.shell:
+    cmd: |
+      . /etc/os-release
+      echo "deb [arch=amd64] https://repo.postgrespro.ru/pg_probackup/deb $VERSION_CODENAME main-$VERSION_CODENAME" > /etc/apt/sources.list.d/pg_probackup.list
+  when: not probackup_repo.stat.exists
+  changed_when: true
+  become: true
+
+- name: Install pg-probackup-18
+  ansible.builtin.apt:
+    name: pg-probackup-18
+    state: present
+    update_cache: true
+  become: true
+
 # ── 3. Deploy custom PostgreSQL configuration ───────────────
 - name: Ensure conf.d directory exists
   ansible.builtin.file:
@@ -123,6 +152,44 @@
 - name: Grant pg_monitor role to zbx_monitor
   ansible.builtin.shell: |
     sudo -u postgres psql -c "GRANT pg_monitor TO zbx_monitor;"
+  changed_when: false
+  become: true
+
+# ── 8a. Create backup user (pg_probackup) ──────────────────
+- name: Create backup user
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c \
+      "DO \$\$ BEGIN CREATE USER backup REPLICATION PASSWORD '{{ backup_pass }}'; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
+  changed_when: false
+  become: true
+
+- name: Grant pg_monitor role to backup
+  ansible.builtin.shell: |
+    sudo -u postgres psql -c "GRANT pg_monitor TO backup;"
+  changed_when: false
+  become: true
+
+- name: Grant pg_catalog permissions to backup user (all monitoring databases)
+  ansible.builtin.shell: |
+    sudo -u postgres psql -d {{ item }} -c "
+      GRANT USAGE ON SCHEMA pg_catalog TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.current_setting(text) TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.set_config(text, text, boolean) TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.pg_is_in_recovery() TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.pg_backup_start(text, boolean) TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.pg_backup_stop(boolean) TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.pg_create_restore_point(text) TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.pg_switch_wal() TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.pg_last_wal_replay_lsn() TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.txid_current() TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.txid_current_snapshot() TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.txid_snapshot_xmax(txid_snapshot) TO backup;
+      GRANT EXECUTE ON FUNCTION pg_catalog.pg_control_checkpoint() TO backup;
+    "
+  loop:
+    - postgres
+    - zabbix
+    - grafana
   changed_when: false
   become: true
 

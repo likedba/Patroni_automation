@@ -5,6 +5,7 @@
 # 1. Patroni cluster + WordPress + NFS + DNS
 # 2. Monitoring: Zabbix + Grafana + agents + host registration
 # 3. Logging: Docker + ELK + Filebeat + Kibana dashboards
+# 4. Backup: pg_probackup on vmubuntu-5
 #
 # Run: ansible-playbook playbooks/deploy_all.yml
 # ─────────────────────────────────────────────────────────────
@@ -12,3 +13,4 @@
 - import_playbook: deploy_patroni_cluster.yml
 - import_playbook: deploy_monitoring.yml
 - import_playbook: deploy_logging.yml
+- import_playbook: deploy_backup.yml

@@ -28,6 +28,32 @@
     state: present
     update_cache: true
 
+# ── Install pg_probackup-18 (for remote backup agent) ──────
+- name: Check if pg_probackup repository is configured
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/pg_probackup.list
+  register: probackup_repo
+
+- name: Download pg_probackup GPG key
+  ansible.builtin.shell:
+    cmd: wget -qO - https://repo.postgrespro.ru/pg_probackup/keys/GPG-KEY-PG-PROBACKUP | tee /etc/apt/trusted.gpg.d/pg_probackup.asc
+  when: not probackup_repo.stat.exists
+  changed_when: true
+
+- name: Add pg_probackup repository
+  ansible.builtin.shell:
+    cmd: |
+      . /etc/os-release
+      echo "deb [arch=amd64] https://repo.postgrespro.ru/pg_probackup/deb $VERSION_CODENAME main-$VERSION_CODENAME" > /etc/apt/sources.list.d/pg_probackup.list
+  when: not probackup_repo.stat.exists
+  changed_when: true
+
+- name: Install pg-probackup-18
+  ansible.builtin.apt:
+    name: pg-probackup-18
+    state: present
+    update_cache: true
+
 - name: Stop postgresql service
   ansible.builtin.systemd:
     name: postgresql

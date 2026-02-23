@@ -1,0 +1,44 @@
+---
+# ─────────────────────────────────────────────────────────────
+# PostgreSQL backup deployment (pg_probackup)
+#
+# Backup server: vmubuntu-5 (192.168.1.145)
+# Targets: Patroni cluster (vmpatronidb-1/2/3) + Monitoring DB (vmubuntu-8)
+#
+# Run all:             ansible-playbook playbooks/deploy_backup.yml
+# Server only:         ansible-playbook playbooks/deploy_backup.yml --tags backup_server
+# ─────────────────────────────────────────────────────────────
+
+- name: Ensure passwords exist in Vault
+  hosts: localhost
+  gather_facts: false
+  tags: [always]
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Ensure vault passwords are up to date
+      include_role:
+        name: vault_passwords
+
+- name: Deploy pg_probackup backup server
+  hosts: backup
+  gather_facts: false
+  become: true
+  tags: [backup_server]
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install and configure pg_probackup
+      include_role:
+        name: pg_probackup
