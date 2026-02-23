@@ -72,10 +72,9 @@
   register: ssh_key
 
 - name: Generate SSH key for postgres user
-  ansible.builtin.command:
-    cmd: ssh-keygen -t ed25519 -N '' -f /var/lib/postgresql/.ssh/id_ed25519
+  ansible.builtin.shell:
+    cmd: sudo -u postgres ssh-keygen -t ed25519 -N '' -f /var/lib/postgresql/.ssh/id_ed25519
   become: true
-  become_user: postgres
   when: not ssh_key.stat.exists
   changed_when: true
 
@@ -117,9 +116,9 @@
     state: present
   become: true
 
-- name: Accept SSH host keys for patroni nodes
+- name: Accept SSH host keys for DB hosts
   ansible.builtin.shell: |
-    ssh-keyscan -H {{ item }} >> /var/lib/postgresql/.ssh/known_hosts
+    sudo -u postgres ssh-keyscan -H {{ item }} >> /var/lib/postgresql/.ssh/known_hosts
   loop:
     - "{{ node1_ip }}"
     - "{{ node2_ip }}"
@@ -127,7 +126,6 @@
     - "{{ monitoring_host_ip }}"
     - "{{ backup_server_ip }}"
   become: true
-  become_user: postgres
   changed_when: true
 
 - name: Fix known_hosts permissions
@@ -165,48 +163,44 @@
   register: probackup_init
 
 - name: Initialize pg_probackup catalog
-  ansible.builtin.command:
-    cmd: pg_probackup-18 init -B /backup/postgres
+  ansible.builtin.shell:
+    cmd: sudo -u postgres pg_probackup-18 init -B /backup/postgres
   become: true
-  become_user: postgres
   when: not probackup_init.stat.exists
   changed_when: true
 
 # ── 7. Add instances ─────────────────────────────────────────
 - name: Check existing pg_probackup instances
-  ansible.builtin.command:
-    cmd: pg_probackup-18 show -B /backup/postgres --format=json
+  ansible.builtin.shell:
+    cmd: sudo -u postgres pg_probackup-18 show -B /backup/postgres --format=json
   register: probackup_instances
   become: true
-  become_user: postgres
   changed_when: false
   failed_when: false
 
 - name: Add patroni instance
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: >
-      pg_probackup-18 add-instance
+      sudo -u postgres pg_probackup-18 add-instance
       -B /backup/postgres
       -D /pgdata/18/data
       --instance=patroni
       --remote-host={{ node1_ip }}
       --remote-user=postgres
   become: true
-  become_user: postgres
   when: "'patroni' not in probackup_instances.stdout"
   changed_when: true
 
 - name: Add monitoring instance
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: >
-      pg_probackup-18 add-instance
+      sudo -u postgres pg_probackup-18 add-instance
       -B /backup/postgres
       -D /var/lib/postgresql/18/main
       --instance=monitoring
       --remote-host={{ monitoring_host_ip }}
       --remote-user=postgres
   become: true
-  become_user: postgres
   when: "'monitoring' not in probackup_instances.stdout"
   changed_when: true
 
@@ -222,44 +216,40 @@
 
 # ── 9. Set retention policy ──────────────────────────────────
 - name: Set retention policy for patroni instance
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: >
-      pg_probackup-18 set-config
+      sudo -u postgres pg_probackup-18 set-config
       -B /backup/postgres
       --instance=patroni
       --retention-redundancy=2
       --retention-window=7
   become: true
-  become_user: postgres
   changed_when: true
 
 - name: Set retention policy for monitoring instance
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: >
-      pg_probackup-18 set-config
+      sudo -u postgres pg_probackup-18 set-config
       -B /backup/postgres
       --instance=monitoring
       --retention-redundancy=2
       --retention-window=7
   become: true
-  become_user: postgres
   changed_when: true
 
 # ── 10. First FULL backup ────────────────────────────────────
 - name: Check if patroni backup already exists
-  ansible.builtin.command:
-    cmd: pg_probackup-18 show -B /backup/postgres --instance=patroni --format=json
+  ansible.builtin.shell:
+    cmd: sudo -u postgres pg_probackup-18 show -B /backup/postgres --instance=patroni --format=json
   register: patroni_backups
   become: true
-  become_user: postgres
   changed_when: false
   failed_when: false
 
 - name: Run first FULL backup for patroni (via bkp_primary.sh)
-  ansible.builtin.command:
-    cmd: /backup/bkp_primary.sh FULL
+  ansible.builtin.shell:
+    cmd: sudo -u postgres /backup/bkp_primary.sh FULL
   become: true
-  become_user: postgres
   when: "'FULL' not in patroni_backups.stdout"
   changed_when: true
   register: patroni_backup_result
@@ -270,18 +260,17 @@
     msg: "{{ patroni_backup_result.stdout_lines | default(['Backup already exists']) }}"
 
 - name: Check if monitoring backup already exists
-  ansible.builtin.command:
-    cmd: pg_probackup-18 show -B /backup/postgres --instance=monitoring --format=json
+  ansible.builtin.shell:
+    cmd: sudo -u postgres pg_probackup-18 show -B /backup/postgres --instance=monitoring --format=json
   register: monitoring_backups
   become: true
-  become_user: postgres
   changed_when: false
   failed_when: false
 
 - name: Run first FULL backup for monitoring
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: >
-      pg_probackup-18 backup
+      sudo -u postgres pg_probackup-18 backup
       -B /backup/postgres
       -D /var/lib/postgresql/18/main
       --instance=monitoring
@@ -295,7 +284,6 @@
       --remote-host={{ monitoring_host_ip }}
       --remote-user=postgres
   become: true
-  become_user: postgres
   when: "'FULL' not in monitoring_backups.stdout"
   changed_when: true
   register: monitoring_backup_result
@@ -356,11 +344,10 @@
 
 # ── 12. Verification ─────────────────────────────────────────
 - name: Show patroni backup status
-  ansible.builtin.command:
-    cmd: pg_probackup-18 show -B /backup/postgres --instance=patroni
+  ansible.builtin.shell:
+    cmd: sudo -u postgres pg_probackup-18 show -B /backup/postgres --instance=patroni
   register: patroni_show
   become: true
-  become_user: postgres
   changed_when: false
 
 - name: Display patroni backup status
@@ -368,11 +355,10 @@
     msg: "{{ patroni_show.stdout_lines }}"
 
 - name: Show monitoring backup status
-  ansible.builtin.command:
-    cmd: pg_probackup-18 show -B /backup/postgres --instance=monitoring
+  ansible.builtin.shell:
+    cmd: sudo -u postgres pg_probackup-18 show -B /backup/postgres --instance=monitoring
   register: monitoring_show
   become: true
-  become_user: postgres
   changed_when: false
 
 - name: Display monitoring backup status
