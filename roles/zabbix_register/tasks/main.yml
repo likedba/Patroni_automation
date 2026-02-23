@@ -26,6 +26,7 @@
         useip: 1
         ip: "{{ item.ip }}"
         port: "10050"
+    macros: "{{ item.macros | default(omit) }}"
     status: enabled
     state: present
   loop: "{{ zabbix_hosts }}"
