@@ -49,6 +49,16 @@
   changed_when: false
   become: true
 
+- name: Update backup user password (sync with Vault)
+  ansible.builtin.shell: |
+    sudo -u postgres psql \
+      "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432 dbname=postgres user=postgres target_session_attrs=read-write connect_timeout=3" \
+      -c "ALTER USER backup WITH PASSWORD '{{ backup_pass }}';"
+  run_once: true
+  changed_when: false
+  no_log: true
+  become: true
+
 - name: Grant pg_catalog permissions to backup user (postgres DB)
   ansible.builtin.shell: |
     sudo -u postgres psql \
