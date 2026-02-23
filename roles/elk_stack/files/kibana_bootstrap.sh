@@ -58,6 +58,10 @@ create_search() {
 
   local SEARCH_SOURCE="{\"query\":{\"query\":\"${KQL_ESCAPED}\",\"language\":\"kuery\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
 
+  # Escape for JSON-in-JSON: first backslashes, then quotes
+  local SS_ESCAPED
+  SS_ESCAPED=$(echo "$SEARCH_SOURCE" | sed 's/\\/\\\\/g; s/"/\\"/g')
+
   curl -s -o /dev/null -w "  HTTP %{http_code}\n" \
     -X POST "$KIBANA/api/saved_objects/search/$ID?overwrite=true" \
     -H "$H_XSRF" -H "$H_JSON" \
@@ -67,7 +71,7 @@ create_search() {
         "columns": ["host.name", "message", "log.file.path"],
         "sort": [["@timestamp", "desc"]],
         "kibanaSavedObjectMeta": {
-          "searchSourceJSON": "'"$(echo "$SEARCH_SOURCE" | sed 's/"/\\"/g')"'"
+          "searchSourceJSON": "'"$SS_ESCAPED"'"
         }
       },
       "references": [
