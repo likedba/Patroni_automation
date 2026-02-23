@@ -1,0 +1,55 @@
+---
+# ─────────────────────────────────────────────────────────────
+# Centralized logging deployment
+#
+# Phase 1: Docker CE on vmubuntu-7
+# Phase 2: ELK stack (ES + Logstash + Kibana) via Docker Compose
+# Phase 3: Filebeat on all hosts
+#
+# Run all:         ansible-playbook playbooks/deploy_logging.yml
+# Docker only:     ansible-playbook playbooks/deploy_logging.yml --tags docker
+# ELK only:        ansible-playbook playbooks/deploy_logging.yml --tags elk
+# Filebeat only:   ansible-playbook playbooks/deploy_logging.yml --tags filebeat
+# ─────────────────────────────────────────────────────────────
+
+- name: Install Docker on logging host
+  hosts: logging
+  gather_facts: false
+  become: true
+  tags: [docker]
+  vars_files:
+    - "{{ playbook_dir }}/../vars.yml"
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
+  tasks:
+    - name: Install Docker CE
+      include_role:
+        name: docker
+
+- name: Deploy ELK stack
+  hosts: logging
+  gather_facts: false
+  become: true
+  tags: [elk]
+  vars_files:
+    - "{{ playbook_dir }}/../vars.yml"
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
+  tasks:
+    - name: Deploy Elasticsearch + Logstash + Kibana
+      include_role:
+        name: elk_stack
+
+- name: Deploy Filebeat on all hosts
+  hosts: infra:dns:patroni_nodes
+  gather_facts: false
+  become: true
+  tags: [filebeat]
+  vars_files:
+    - "{{ playbook_dir }}/../vars.yml"
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
+  tasks:
+    - name: Install and configure Filebeat
+      include_role:
+        name: filebeat

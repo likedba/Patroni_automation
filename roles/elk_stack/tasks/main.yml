@@ -1,0 +1,134 @@
+---
+# ── 1. Kernel tuning for Elasticsearch ─────────────────────────
+- name: Set vm.max_map_count for Elasticsearch
+  ansible.posix.sysctl:
+    name: vm.max_map_count
+    value: "262144"
+    sysctl_set: true
+    state: present
+    reload: true
+  become: true
+
+# ── 2. Create ELK directories ─────────────────────────────────
+- name: Create ELK directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /opt/elk
+    - /opt/elk/logstash
+    - /opt/elk/logstash/pipeline
+  become: true
+
+# ── 3. Deploy docker-compose.yml ──────────────────────────────
+- name: Deploy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/elk/docker-compose.yml
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: restart elk
+
+# ── 4. Deploy Logstash pipeline config ─────────────────────────
+- name: Deploy Logstash pipeline config
+  ansible.builtin.template:
+    src: logstash-pipeline.conf.j2
+    dest: /opt/elk/logstash/pipeline/beats.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: restart elk
+
+# ── 5. Start ELK stack ────────────────────────────────────────
+- name: Check if ELK containers are running
+  ansible.builtin.command:
+    cmd: docker compose -f /opt/elk/docker-compose.yml ps -q
+  register: elk_containers
+  changed_when: false
+  failed_when: false
+  become: true
+
+- name: Start ELK stack
+  ansible.builtin.command:
+    cmd: docker compose -f /opt/elk/docker-compose.yml up -d
+  become: true
+  when: elk_containers.stdout == ""
+  changed_when: true
+
+- name: Flush handlers (apply config changes)
+  ansible.builtin.meta: flush_handlers
+
+# ── 6. UFW firewall ────────────────────────────────────────────
+- name: Check UFW status
+  ansible.builtin.command:
+    cmd: ufw status
+  register: ufw_status
+  changed_when: false
+  become: true
+
+- name: Allow Logstash Beats input (5044)
+  ansible.builtin.shell: |
+    ufw allow 5044/tcp
+  when: "'5044' not in ufw_status.stdout"
+  changed_when: true
+  become: true
+
+- name: Allow Kibana (5601)
+  ansible.builtin.shell: |
+    ufw allow 5601/tcp
+  when: "'5601' not in ufw_status.stdout"
+  changed_when: true
+  become: true
+
+- name: Allow Elasticsearch (9200)
+  ansible.builtin.shell: |
+    ufw allow 9200/tcp
+  when: "'9200' not in ufw_status.stdout"
+  changed_when: true
+  become: true
+
+# ── 7. Verification ───────────────────────────────────────────
+- name: Wait for Elasticsearch to start
+  ansible.builtin.wait_for:
+    port: 9200
+    host: 127.0.0.1
+    timeout: 120
+    delay: 10
+
+- name: Check Elasticsearch cluster health
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:9200/_cluster/health"
+    method: GET
+    return_content: true
+  register: es_health
+  retries: 5
+  delay: 10
+  until: es_health.status == 200
+
+- name: Display Elasticsearch health
+  ansible.builtin.debug:
+    msg: "ES cluster: {{ es_health.json.cluster_name }} — status: {{ es_health.json.status }}"
+
+- name: Wait for Kibana to start
+  ansible.builtin.wait_for:
+    port: 5601
+    host: 127.0.0.1
+    timeout: 120
+    delay: 10
+
+- name: Wait for Logstash to start
+  ansible.builtin.wait_for:
+    port: 5044
+    host: 127.0.0.1
+    timeout: 120
+    delay: 10
+
+- name: Display ELK stack status
+  ansible.builtin.debug:
+    msg: "ELK stack is running — ES:9200, Logstash:5044, Kibana:5601"

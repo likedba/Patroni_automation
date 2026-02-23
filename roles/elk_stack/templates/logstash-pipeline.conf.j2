@@ -1,0 +1,15 @@
+# Logstash pipeline: Beats → Elasticsearch
+# Managed by Ansible — do not edit manually
+
+input {
+  beats {
+    port => 5044
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["http://elasticsearch:9200"]
+    index => "filebeat-%{+YYYY.MM.dd}"
+  }
+}

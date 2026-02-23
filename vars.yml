@@ -117,6 +117,14 @@ zbx_monitor_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zbx_mo
 zabbix_admin_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zabbix_admin_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
 
 # =========================
+# ELK Stack (vmubuntu-7)
+# =========================
+elk_version: "8.17.0"
+elk_host_ip: "{{ infra_vms | selectattr('name', 'equalto', 'vmubuntu-7') | map(attribute='ip') | first }}"
+es_heap_size: "1g"
+ls_heap_size: "512m"
+
+# =========================
 # Zabbix host registration
 # =========================
 zabbix_host_groups:
@@ -127,6 +135,7 @@ zabbix_host_groups:
   - "NFS Servers"
   - "DNS"
   - "Monitoring Stack"
+  - "ELK Stack"
 
 zabbix_hosts:
   - name: vmpatronidb-1
@@ -191,7 +200,7 @@ zabbix_hosts:
     templates: ["Linux by Zabbix agent"]
   - name: vmubuntu-7
     ip: "192.168.1.147"
-    groups: ["Linux servers"]
+    groups: ["Linux servers", "ELK Stack"]
     templates: ["Linux by Zabbix agent"]
   - name: vmubuntu-8
     ip: "192.168.1.148"

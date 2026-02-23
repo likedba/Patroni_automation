@@ -1,0 +1,43 @@
+# Filebeat configuration
+# Managed by Ansible — do not edit manually
+
+filebeat.inputs:
+  # Syslog + auth on all hosts
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/syslog
+      - /var/log/auth.log
+    fields:
+      log_type: system
+    fields_under_root: false
+
+{% if 'patroni_nodes' in group_names %}
+  # PostgreSQL logs
+  - type: log
+    enabled: true
+    paths:
+      - /pgdata/18/data/log/*.log
+    fields:
+      log_type: postgresql
+    fields_under_root: false
+
+  # Patroni logs
+  - type: log
+    enabled: true
+    paths:
+      - /pgdata/patroni/patroni.log
+    fields:
+      log_type: patroni
+    fields_under_root: false
+{% endif %}
+
+output.logstash:
+  hosts: ["{{ elk_host_ip }}:5044"]
+
+logging.level: warning
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 3

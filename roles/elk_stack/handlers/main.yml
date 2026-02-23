@@ -1,0 +1,7 @@
+---
+- name: restart elk
+  ansible.builtin.shell: |
+    docker compose -f /opt/elk/docker-compose.yml down
+    docker compose -f /opt/elk/docker-compose.yml up -d
+  become: true
+  changed_when: true
