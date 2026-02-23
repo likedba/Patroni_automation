@@ -115,6 +115,28 @@
   ansible.builtin.debug:
     msg: "ES cluster: {{ es_health.json.cluster_name }} — status: {{ es_health.json.status }}"
 
+# ── 8. Set replicas=0 for single-node (green instead of yellow) ──
+- name: Create index template with 0 replicas for filebeat
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:9200/_template/filebeat_template"
+    method: PUT
+    body_format: json
+    body:
+      index_patterns: ["filebeat-*"]
+      settings:
+        number_of_replicas: 0
+    status_code: [200]
+
+- name: Set 0 replicas on existing filebeat indices
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:9200/filebeat-*/_settings"
+    method: PUT
+    body_format: json
+    body:
+      index:
+        number_of_replicas: 0
+    status_code: [200, 404]
+
 - name: Wait for Kibana to start
   ansible.builtin.wait_for:
     port: 5601
