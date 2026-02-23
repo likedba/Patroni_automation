@@ -109,7 +109,7 @@ create_dashboard() {
 
   echo "=== Creating Dashboard: $TITLE ==="
 
-  local PANELS='[{"gridData":{"x":0,"y":0,"w":24,"h":15,"i":"1"},"panelIndex":"1","panelRefName":"panel_0","type":"search"},{"gridData":{"x":24,"y":0,"w":24,"h":15,"i":"2"},"panelIndex":"2","panelRefName":"panel_1","type":"search"}]'
+  local PANELS='[{"gridData":{"x":0,"y":0,"w":24,"h":15,"i":"1"},"panelIndex":"1","panelRefName":"panel_0","type":"search","embeddableConfig":{"enhancements":{}},"version":"8.17.0"},{"gridData":{"x":24,"y":0,"w":24,"h":15,"i":"2"},"panelIndex":"2","panelRefName":"panel_1","type":"search","embeddableConfig":{"enhancements":{}},"version":"8.17.0"}]'
 
   curl -s -o /dev/null -w "  HTTP %{http_code}\n" \
     -X POST "$KIBANA/api/saved_objects/dashboard/$ID?overwrite=true" \
