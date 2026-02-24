@@ -121,6 +121,7 @@ zabbix_admin_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zabbi
 # =========================
 backup_server_ip: "{{ infra_vms | selectattr('name', 'equalto', 'vmubuntu-5') | map(attribute='ip') | first }}"
 backup_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=backup_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
+backup_replica_ip: "{{ infra_vms | selectattr('name', 'equalto', 'vmubuntu-2') | map(attribute='ip') | first }}"
 
 # =========================
 # ELK Stack (vmubuntu-7)

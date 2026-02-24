@@ -7,6 +7,7 @@
 #
 # Run all:             ansible-playbook playbooks/deploy_backup.yml
 # Server only:         ansible-playbook playbooks/deploy_backup.yml --tags backup_server
+# Replication only:    ansible-playbook playbooks/deploy_backup.yml --tags backup_replication
 # ─────────────────────────────────────────────────────────────
 
 - name: Ensure passwords exist in Vault
@@ -42,3 +43,24 @@
     - name: Install and configure pg_probackup
       include_role:
         name: pg_probackup
+
+- name: Configure backup replication to vmubuntu-2
+  hosts: backup
+  gather_facts: false
+  become: true
+  tags: [backup_replication]
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Configure replication to backup replica
+      include_role:
+        name: backup_replication

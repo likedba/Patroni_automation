@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Backup replication: vmubuntu-5 → vmubuntu-2
+# Managed by Ansible — do not edit manually
+#
+# Syncs pg_probackup catalog and NFS uploads to replica host.
+# Runs as aleksei user via cron every 4 hours.
+
+REPLICA="{{ backup_replica_ip }}"
+LOG_PREFIX="[$(date '+%Y-%m-%d %H:%M:%S')]"
+
+echo "${LOG_PREFIX} Starting backup replication to ${REPLICA}"
+
+# ── 1. Sync pg_probackup catalog + backups ──
+echo "${LOG_PREFIX} Syncing /backup/postgres/ ..."
+sudo rsync -az --delete \
+  -e "ssh -o BatchMode=yes -o ConnectTimeout=10" \
+  --rsync-path="sudo rsync" \
+  /backup/postgres/ \
+  aleksei@${REPLICA}:/backup/postgres/
+
+echo "${LOG_PREFIX} pg_probackup sync complete"
+
+# ── 2. Sync NFS WordPress uploads ──
+echo "${LOG_PREFIX} Syncing /srv/nfs/wordpress/uploads/ ..."
+sudo rsync -az --delete \
+  -e "ssh -o BatchMode=yes -o ConnectTimeout=10" \
+  --rsync-path="sudo rsync" \
+  /srv/nfs/wordpress/uploads/ \
+  aleksei@${REPLICA}:/srv/nfs/wordpress/uploads/
+
+echo "${LOG_PREFIX} NFS uploads sync complete"
+
+echo "${LOG_PREFIX} Replication finished successfully"

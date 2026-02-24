@@ -1,0 +1,190 @@
+---
+# ── 1. Prepare replica host (vmubuntu-2) ───────────────────
+- name: Install rsync on replica host
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+    update_cache: true
+  delegate_to: vmubuntu-2
+  vars:
+    ansible_become_password: "{{ hostvars[inventory_hostname].ansible_become_password }}"
+  become: true
+
+- name: Create backup directory on replica
+  ansible.builtin.file:
+    path: /backup/postgres
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  delegate_to: vmubuntu-2
+  vars:
+    ansible_become_password: "{{ hostvars[inventory_hostname].ansible_become_password }}"
+  become: true
+
+- name: Create NFS uploads directory on replica
+  ansible.builtin.file:
+    path: /srv/nfs/wordpress/uploads
+    state: directory
+    owner: "33"
+    group: "33"
+    mode: "0755"
+    recurse: true
+  delegate_to: vmubuntu-2
+  vars:
+    ansible_become_password: "{{ hostvars[inventory_hostname].ansible_become_password }}"
+  become: true
+
+- name: Deploy sudoers for rsync on replica
+  ansible.builtin.copy:
+    content: |
+      # Allow aleksei to run rsync as root (for backup replication)
+      aleksei ALL=(ALL) NOPASSWD: /usr/bin/rsync
+    dest: /etc/sudoers.d/rsync_backup
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+  delegate_to: vmubuntu-2
+  vars:
+    ansible_become_password: "{{ hostvars[inventory_hostname].ansible_become_password }}"
+  become: true
+
+# ── 2. SSH key for aleksei user ────────────────────────────
+- name: Create .ssh directory for aleksei
+  ansible.builtin.file:
+    path: /home/aleksei/.ssh
+    state: directory
+    owner: aleksei
+    group: aleksei
+    mode: "0700"
+  become: true
+
+- name: Check if SSH key already exists
+  ansible.builtin.stat:
+    path: /home/aleksei/.ssh/id_ed25519
+  register: aleksei_ssh_key
+
+- name: Generate SSH key for aleksei user
+  ansible.builtin.shell:
+    cmd: sudo -u aleksei ssh-keygen -t ed25519 -N '' -f /home/aleksei/.ssh/id_ed25519
+  become: true
+  when: not aleksei_ssh_key.stat.exists
+  changed_when: true
+
+- name: Read aleksei public key
+  ansible.builtin.slurp:
+    src: /home/aleksei/.ssh/id_ed25519.pub
+  register: aleksei_pubkey
+  become: true
+
+# ── 3. Deploy SSH key to replica ───────────────────────────
+- name: Deploy SSH public key to replica
+  ansible.posix.authorized_key:
+    user: aleksei
+    key: "{{ aleksei_pubkey.content | b64decode }}"
+    state: present
+  delegate_to: vmubuntu-2
+  vars:
+    ansible_become_password: "{{ hostvars[inventory_hostname].ansible_become_password }}"
+  become: true
+
+- name: Accept SSH host key for replica
+  ansible.builtin.shell: |
+    sudo -u aleksei ssh-keyscan -H {{ backup_replica_ip }} >> /home/aleksei/.ssh/known_hosts
+  become: true
+  changed_when: true
+
+- name: Fix known_hosts permissions
+  ansible.builtin.file:
+    path: /home/aleksei/.ssh/known_hosts
+    owner: aleksei
+    group: aleksei
+    mode: "0644"
+  become: true
+
+# ── 4. Deploy sudoers on backup server (for rsync source) ──
+- name: Deploy sudoers for rsync on backup server
+  ansible.builtin.copy:
+    content: |
+      # Allow aleksei to run rsync as root (for backup replication)
+      aleksei ALL=(ALL) NOPASSWD: /usr/bin/rsync
+    dest: /etc/sudoers.d/rsync_backup
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+  become: true
+
+# ── 5. Deploy sync script ──────────────────────────────────
+- name: Deploy sync script
+  ansible.builtin.template:
+    src: sync_to_replica.sh.j2
+    dest: /backup/sync_to_replica.sh
+    owner: aleksei
+    group: aleksei
+    mode: "0755"
+  become: true
+
+# ── 6. Crontab ─────────────────────────────────────────────
+- name: "Cron: sync backups to replica (every 4 hours)"
+  ansible.builtin.cron:
+    name: "sync backups to replica"
+    user: aleksei
+    minute: "0"
+    hour: "*/4"
+    job: "/backup/sync_to_replica.sh &>> /var/log/backup_sync.log"
+  become: true
+
+- name: Create log file for sync
+  ansible.builtin.file:
+    path: /var/log/backup_sync.log
+    state: touch
+    owner: aleksei
+    group: aleksei
+    mode: "0644"
+    modification_time: preserve
+    access_time: preserve
+  become: true
+
+# ── 7. Verification ────────────────────────────────────────
+- name: Test SSH connectivity to replica
+  ansible.builtin.shell: |
+    sudo -u aleksei ssh -o BatchMode=yes -o ConnectTimeout=5 aleksei@{{ backup_replica_ip }} 'hostname'
+  register: ssh_test
+  become: true
+  changed_when: false
+
+- name: Display SSH test result
+  ansible.builtin.debug:
+    msg: "SSH to replica: {{ ssh_test.stdout }}"
+
+- name: Run initial sync
+  ansible.builtin.shell: |
+    sudo -u aleksei /backup/sync_to_replica.sh
+  register: sync_result
+  become: true
+  changed_when: true
+  timeout: 600
+
+- name: Verify replica has backup data
+  ansible.builtin.shell: |
+    sudo -u aleksei ssh aleksei@{{ backup_replica_ip }} 'sudo ls -la /backup/postgres/backups/ 2>/dev/null && sudo ls -la /srv/nfs/wordpress/uploads/ 2>/dev/null || echo "directories exist but may be empty"'
+  register: replica_verify
+  become: true
+  changed_when: false
+
+- name: Display replica verification
+  ansible.builtin.debug:
+    msg: "{{ replica_verify.stdout_lines }}"
+
+- name: Show aleksei crontab
+  ansible.builtin.command:
+    cmd: crontab -l -u aleksei
+  register: cron_show
+  become: true
+  changed_when: false
+
+- name: Display crontab
+  ansible.builtin.debug:
+    msg: "{{ cron_show.stdout_lines }}"
