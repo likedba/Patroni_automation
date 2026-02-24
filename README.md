@@ -69,7 +69,8 @@ ansible-playbook playbooks/deploy_backup.yml
 
 ```mermaid
 graph TB
-    Internet((Internet)) -->|"HTTPS :443"| nginx
+    Internet((Internet)) -->|"HTTPS"| keenetic
+    keenetic["Keenetic Router<br/>KeenDNS cloud<br/>alehanproject.alehannet.crazedns.ru"] -->|":4433"| nginx
 
     subgraph frontend [Frontend]
         nginx["vmubuntu-1<br/>NGINX reverse proxy + SSL<br/>192.168.1.141"]
@@ -101,25 +102,29 @@ graph TB
 
     subgraph infra [Infrastructure Services]
         nfs["vmubuntu-5<br/>NFS + pg_probackup<br/>192.168.1.145"]
+        bkp["vmubuntu-2<br/>Backup replica (rsync)<br/>192.168.1.142"]
         mon["vmubuntu-8<br/>Zabbix 7.4 + Grafana 11.5<br/>PostgreSQL 18<br/>192.168.1.148"]
         elk["vmubuntu-7<br/>ELK Stack — Docker<br/>192.168.1.147"]
         ctl["vmubuntu-6<br/>Ansible + DNS + Vault<br/>192.168.1.146"]
     end
+
+    nfs -.->|"rsync (4h)"| bkp
 ```
 
 > **Примечания:**
+> - Внешний доступ: `https://alehanproject.alehannet.crazedns.ru` → Keenetic (KeenDNS cloud) → vmubuntu-1:4433
 > - WordPress подключается ко всем 3 узлам Patroni через multi-host строку (`target_session_attrs=read-write`) — автоматический failover на primary
 > - Все VM отправляют логи в ELK через Filebeat (Logstash :5044)
 > - Все VM мониторятся Zabbix Agent2 (:10050)
 > - Ansible (vmubuntu-6) управляет всеми VM по SSH :22
 > - etcd-кластер работает на всех 3 узлах Patroni (:2379/:2380)
-> - vmubuntu-2 (192.168.1.142) — резервная VM
+> - vmubuntu-2 — replica хранилища vmubuntu-5 (rsync каждые 4 часа)
 
 | VM | IP | Роль |
 |----|----|------|
 | vmpatronidb-1/2/3 | .135 / .136 / .137 | PostgreSQL 18 + Patroni + etcd |
 | vmubuntu-1 | .141 | NGINX frontend (reverse proxy + SSL) |
-| vmubuntu-2 | .142 | Резерв |
+| vmubuntu-2 | .142 | Backup replica (rsync с vmubuntu-5) |
 | vmubuntu-3 | .143 | WordPress backend 1 |
 | vmubuntu-4 | .144 | WordPress backend 2 |
 | vmubuntu-5 | .145 | NFS server + pg_probackup + PostgreSQL 18 |

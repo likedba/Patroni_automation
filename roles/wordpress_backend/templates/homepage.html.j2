@@ -1,0 +1,105 @@
+<p>Ansible-проект для автоматического развёртывания отказоустойчивой инфраструктуры на базе <strong>PostgreSQL 18 + Patroni</strong> с веб-приложением WordPress, мониторингом, централизованным логированием и резервным копированием.</p>
+<p>Все VM создаются из шаблона в vCenter, конфигурируются через Ansible, секреты хранятся в HashiCorp Vault.</p>
+
+<h2>Стек</h2>
+<ul>
+  <li><strong>Database</strong>: PostgreSQL 18 — 3-node Patroni cluster (etcd DCS, streaming replication, auto-failover)</li>
+  <li><strong>Application</strong>: WordPress + PHP-FPM + pg4wp (PostgreSQL-драйвер), 2 backend-сервера за NGINX reverse proxy с SSL</li>
+  <li><strong>Storage</strong>: NFS — общее хранилище uploads для WordPress</li>
+  <li><strong>Monitoring</strong>: Zabbix Server 7.4 + Grafana 11.5 + Zabbix Agent2 на всех узлах</li>
+  <li><strong>Logging</strong>: ELK Stack (Elasticsearch + Logstash + Kibana) + Filebeat на всех узлах</li>
+  <li><strong>Backup</strong>: pg_probackup — инкрементальные бэкапы Patroni-кластера и monitoring DB, rsync-репликация на vmubuntu-2</li>
+  <li><strong>Secrets</strong>: HashiCorp Vault</li>
+  <li><strong>DNS</strong>: dnsmasq</li>
+  <li><strong>Provisioning</strong>: VMware vCenter + ESXi</li>
+</ul>
+
+<h2>Архитектура</h2>
+<pre style="background:#f4f4f4;padding:16px;border-radius:6px;overflow-x:auto;font-size:13px;line-height:1.4;">
+                        Internet
+                           |
+                         HTTPS
+                           |
+                  +------------------+
+                  | Keenetic Router  |
+                  | KeenDNS cloud    |
+                  | alehanproject.   |
+                  | alehannet.       |
+                  | crazedns.ru      |
+                  +--------+---------+
+                           | :4433
+                  +--------+---------+
+                  |    vmubuntu-1    |
+                  |  NGINX reverse   |
+                  |  proxy + SSL     |
+                  |  192.168.1.141   |
+                  +--------+---------+
+                      :8080 |  :8080
+                +-----------+-----------+
+                |                       |
+       +--------+--------+    +--------+--------+
+       |   vmubuntu-3    |    |   vmubuntu-4    |
+       |  WordPress +    |    |  WordPress +    |
+       |  PHP-FPM        |    |  PHP-FPM        |
+       |  192.168.1.143  |    |  192.168.1.144  |
+       +--------+--------+    +--------+--------+
+                |  PostgreSQL :5432     |
+                +----------+-----------+
+                           |
+         +-----------------+-----------------+
+         |                 |                 |
+  +------+-----+   +------+------+   +------+------+
+  | patroni-1  |   | patroni-2   |   | patroni-3   |
+  | PRIMARY    |   | STANDBY     |   | STANDBY     |
+  | .135       |   | .136        |   | .137        |
+  +------------+   +-------------+   +-------------+
+         |              replication
+         +------- etcd cluster (DCS) --------+
+</pre>
+
+<h2>Инфраструктура</h2>
+<table style="border-collapse:collapse;width:100%;">
+  <thead>
+    <tr style="background:#f0f0f0;">
+      <th style="border:1px solid #ddd;padding:8px;text-align:left;">VM</th>
+      <th style="border:1px solid #ddd;padding:8px;text-align:left;">IP</th>
+      <th style="border:1px solid #ddd;padding:8px;text-align:left;">Роль</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="border:1px solid #ddd;padding:8px;">vmpatronidb-1/2/3</td><td style="border:1px solid #ddd;padding:8px;">.135 / .136 / .137</td><td style="border:1px solid #ddd;padding:8px;">PostgreSQL 18 + Patroni + etcd</td></tr>
+    <tr><td style="border:1px solid #ddd;padding:8px;">vmubuntu-1</td><td style="border:1px solid #ddd;padding:8px;">.141</td><td style="border:1px solid #ddd;padding:8px;">NGINX frontend (reverse proxy + SSL)</td></tr>
+    <tr><td style="border:1px solid #ddd;padding:8px;">vmubuntu-2</td><td style="border:1px solid #ddd;padding:8px;">.142</td><td style="border:1px solid #ddd;padding:8px;">Backup replica (rsync с vmubuntu-5)</td></tr>
+    <tr><td style="border:1px solid #ddd;padding:8px;">vmubuntu-3</td><td style="border:1px solid #ddd;padding:8px;">.143</td><td style="border:1px solid #ddd;padding:8px;">WordPress backend 1</td></tr>
+    <tr><td style="border:1px solid #ddd;padding:8px;">vmubuntu-4</td><td style="border:1px solid #ddd;padding:8px;">.144</td><td style="border:1px solid #ddd;padding:8px;">WordPress backend 2</td></tr>
+    <tr><td style="border:1px solid #ddd;padding:8px;">vmubuntu-5</td><td style="border:1px solid #ddd;padding:8px;">.145</td><td style="border:1px solid #ddd;padding:8px;">NFS server + pg_probackup</td></tr>
+    <tr><td style="border:1px solid #ddd;padding:8px;">vmubuntu-6</td><td style="border:1px solid #ddd;padding:8px;">.146</td><td style="border:1px solid #ddd;padding:8px;">Ansible control node + DNS + Vault</td></tr>
+    <tr><td style="border:1px solid #ddd;padding:8px;">vmubuntu-7</td><td style="border:1px solid #ddd;padding:8px;">.147</td><td style="border:1px solid #ddd;padding:8px;">ELK Stack (Elasticsearch + Logstash + Kibana)</td></tr>
+    <tr><td style="border:1px solid #ddd;padding:8px;">vmubuntu-8</td><td style="border:1px solid #ddd;padding:8px;">.148</td><td style="border:1px solid #ddd;padding:8px;">Zabbix Server + Grafana + PostgreSQL 18</td></tr>
+  </tbody>
+</table>
+<p><em>Все IP в подсети 192.168.1.0/24. ESXi: 192.168.1.83, vCenter: 192.168.1.140.</em></p>
+
+<h2>Ключевые особенности</h2>
+<ul>
+  <li>Внешний доступ: <code>https://alehanproject.alehannet.crazedns.ru</code> → Keenetic (KeenDNS cloud) → vmubuntu-1:4433</li>
+  <li>WordPress подключается ко всем 3 узлам Patroni через multi-host строку (<code>target_session_attrs=read-write</code>) — автоматический failover на primary</li>
+  <li>Все VM отправляют логи в ELK через Filebeat (Logstash :5044)</li>
+  <li>Все VM мониторятся Zabbix Agent2 (:10050)</li>
+  <li>Ansible (vmubuntu-6) управляет всеми VM по SSH :22</li>
+  <li>etcd-кластер работает на всех 3 узлах Patroni (:2379/:2380)</li>
+  <li>pg_probackup: FULL (суббота) + DELTA (ежедневно), репликация на vmubuntu-2 каждые 4 часа</li>
+</ul>
+
+<h2>Быстрый старт</h2>
+<pre style="background:#f4f4f4;padding:16px;border-radius:6px;font-size:14px;">
+# Полное развёртывание всей инфраструктуры
+ansible-playbook playbooks/deploy_all.yml
+
+# Отдельные компоненты
+ansible-playbook playbooks/deploy_patroni_cluster.yml
+ansible-playbook playbooks/deploy_wordpress.yml
+ansible-playbook playbooks/deploy_monitoring.yml
+ansible-playbook playbooks/deploy_logging.yml
+ansible-playbook playbooks/deploy_backup.yml
+</pre>

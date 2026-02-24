@@ -305,7 +305,82 @@
   become: true
   no_log: true
 
-# ── 12. UFW firewall ─────────────────────────────────────────
+# ── 12. Deploy project homepage ────────────────────────────────
+- name: Deploy homepage HTML template
+  ansible.builtin.template:
+    src: homepage.html.j2
+    dest: /tmp/homepage.html
+    mode: "0644"
+  run_once: true
+  become: true
+
+- name: Check if homepage already exists
+  ansible.builtin.shell: >
+    wp post list --allow-root --path=/var/www/html
+    --post_type=page --post_status=publish
+    --field=post_title | grep -c "^Patroni Automation$"
+  register: homepage_exists
+  run_once: true
+  failed_when: false
+  changed_when: false
+  become: true
+
+- name: Create homepage in WordPress
+  ansible.builtin.shell: >
+    wp post create /tmp/homepage.html
+    --allow-root --path=/var/www/html
+    --post_type=page --post_status=publish
+    --post_title="Patroni Automation"
+    --porcelain
+  register: homepage_created
+  when: homepage_exists.stdout | default("0") | int == 0
+  run_once: true
+  changed_when: true
+  become: true
+
+- name: Get homepage page ID (if already exists)
+  ansible.builtin.shell: >
+    wp post list --allow-root --path=/var/www/html
+    --post_type=page --post_status=publish
+    --field=ID --post_title="Patroni Automation"
+  register: homepage_id_existing
+  when: homepage_exists.stdout | default("0") | int > 0
+  run_once: true
+  changed_when: false
+  become: true
+
+- name: Update existing homepage content
+  ansible.builtin.shell: >
+    wp post update {{ homepage_id_existing.stdout | trim }}
+    /tmp/homepage.html
+    --allow-root --path=/var/www/html
+  when: homepage_exists.stdout | default("0") | int > 0
+  run_once: true
+  changed_when: true
+  become: true
+
+- name: Set homepage page ID
+  ansible.builtin.set_fact:
+    homepage_page_id: "{{ homepage_created.stdout | default(homepage_id_existing.stdout | default('')) | trim }}"
+  run_once: true
+
+- name: Set static front page
+  ansible.builtin.shell: |
+    wp option update show_on_front 'page' --allow-root --path=/var/www/html
+    wp option update page_on_front '{{ homepage_page_id }}' --allow-root --path=/var/www/html
+  when: homepage_page_id | length > 0
+  run_once: true
+  changed_when: true
+  become: true
+
+- name: Clean up homepage temp file
+  ansible.builtin.file:
+    path: /tmp/homepage.html
+    state: absent
+  run_once: true
+  become: true
+
+# ── 13. UFW firewall ─────────────────────────────────────────
 - name: Check UFW status
   ansible.builtin.command:
     cmd: ufw status
