@@ -8,6 +8,9 @@ set -euo pipefail
 # Runs as aleksei user via cron every 4 hours.
 
 REPLICA="{{ backup_replica_ip }}"
+SSH_KEY="/home/aleksei/.ssh/id_ed25519"
+SSH_KNOWN="/home/aleksei/.ssh/known_hosts"
+SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=10 -i ${SSH_KEY} -o UserKnownHostsFile=${SSH_KNOWN}"
 LOG_PREFIX="[$(date '+%Y-%m-%d %H:%M:%S')]"
 
 echo "${LOG_PREFIX} Starting backup replication to ${REPLICA}"
@@ -15,7 +18,7 @@ echo "${LOG_PREFIX} Starting backup replication to ${REPLICA}"
 # ── 1. Sync pg_probackup catalog + backups ──
 echo "${LOG_PREFIX} Syncing /backup/postgres/ ..."
 sudo rsync -az --delete \
-  -e "ssh -o BatchMode=yes -o ConnectTimeout=10" \
+  -e "${SSH_OPTS}" \
   --rsync-path="sudo rsync" \
   /backup/postgres/ \
   aleksei@${REPLICA}:/backup/postgres/
@@ -25,7 +28,7 @@ echo "${LOG_PREFIX} pg_probackup sync complete"
 # ── 2. Sync NFS WordPress uploads ──
 echo "${LOG_PREFIX} Syncing /srv/nfs/wordpress/uploads/ ..."
 sudo rsync -az --delete \
-  -e "ssh -o BatchMode=yes -o ConnectTimeout=10" \
+  -e "${SSH_OPTS}" \
   --rsync-path="sudo rsync" \
   /srv/nfs/wordpress/uploads/ \
   aleksei@${REPLICA}:/srv/nfs/wordpress/uploads/
