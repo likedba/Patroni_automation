@@ -82,6 +82,19 @@
   changed_when: false
   become: true
 
+- name: Verify {{ app_db_name }} exists on primary before granting
+  ansible.builtin.shell: |
+    sudo -u postgres psql \
+      "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432 dbname=postgres user=postgres target_session_attrs=read-write connect_timeout=3" \
+      -tc "SELECT 1 FROM pg_database WHERE datname='{{ app_db_name }}'"
+  register: db_verify
+  run_once: true
+  changed_when: false
+  become: true
+  retries: 6
+  delay: 5
+  until: "'1' in db_verify.stdout"
+
 - name: Grant pg_catalog permissions to backup user ({{ app_db_name }} DB)
   ansible.builtin.shell: |
     sudo -u postgres psql \
