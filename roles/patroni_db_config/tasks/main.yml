@@ -114,9 +114,13 @@
         GRANT EXECUTE ON FUNCTION pg_catalog.txid_snapshot_xmax(txid_snapshot) TO backup;
         GRANT EXECUTE ON FUNCTION pg_catalog.pg_control_checkpoint() TO backup;
       "
+  register: grant_appdb
   run_once: true
   changed_when: false
   become: true
+  retries: 6
+  delay: 5
+  until: grant_appdb.rc == 0
 
 # Create pdc.yml and apply Patroni DCS config (run once from first node)
 - name: Deploy Patroni DCS config file
