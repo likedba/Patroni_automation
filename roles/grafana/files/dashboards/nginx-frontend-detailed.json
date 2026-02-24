@@ -29,7 +29,7 @@
           "host": { "filter": "/.*/" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "Connections: active" },
+          "item": { "filter": "Connections active" },
           "functions": [],
           "options": { "showDisabledItems": false }
         }
@@ -66,7 +66,7 @@
           "host": { "filter": "/.*/" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/Connections: (reading|writing|waiting)/" },
+          "item": { "filter": "/Connections (reading|writing|waiting)/" },
           "functions": [],
           "options": { "showDisabledItems": false }
         }
@@ -141,7 +141,7 @@
           "host": { "filter": "/.*/" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/Connections: (accepted|handled|dropped) per second/" },
+          "item": { "filter": "/Connections (accepted|handled|dropped) per second/" },
           "functions": [],
           "options": { "showDisabledItems": false }
         }

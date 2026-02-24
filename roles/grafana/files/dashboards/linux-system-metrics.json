@@ -208,7 +208,7 @@
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/: Space utilization/" },
+          "item": { "filter": "sda: Disk utilization" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -320,7 +320,7 @@
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "Swap space usage" },
+          "item": { "filter": "Free swap space in %" },
           "functions": [],
           "options": {
             "showDisabledItems": false

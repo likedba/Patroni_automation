@@ -91,7 +91,7 @@
           "host": { "filter": "$backend" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "Connections: active" },
+          "item": { "filter": "Connections active" },
           "functions": [],
           "options": { "showDisabledItems": false }
         }
@@ -135,7 +135,7 @@
           "host": { "filter": "$backend" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "Active processes" },
+          "item": { "filter": "Processes, active" },
           "functions": [],
           "options": { "showDisabledItems": false }
         }
@@ -172,7 +172,7 @@
           "host": { "filter": "$backend" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "Idle processes" },
+          "item": { "filter": "Processes, idle" },
           "functions": [],
           "options": { "showDisabledItems": false }
         }
