@@ -70,7 +70,7 @@
     group: zabbix
     mode: "0750"
   become: true
-  when: "'patroni_nodes' in group_names or 'monitoring' in group_names"
+  when: "'patroni_nodes' in group_names or 'monitoring' in group_names or 'nginx_frontend' in group_names or 'wordpress_backends' in group_names"
 
 - name: Deploy plugins.d include configuration
   ansible.builtin.copy:
@@ -83,7 +83,7 @@
     group: zabbix
     mode: "0640"
   become: true
-  when: "'patroni_nodes' in group_names or 'monitoring' in group_names"
+  when: "'patroni_nodes' in group_names or 'monitoring' in group_names or 'nginx_frontend' in group_names or 'wordpress_backends' in group_names"
   notify: restart zabbix-agent2
 
 - name: Deploy PostgreSQL plugin configuration
@@ -95,6 +95,26 @@
     mode: "0640"
   become: true
   when: "'patroni_nodes' in group_names or 'monitoring' in group_names"
+  notify: restart zabbix-agent2
+
+# ── 5b. Nginx plugin (web hosts) ─────────────────────────────
+- name: Install zabbix-agent2-plugin-nginx
+  ansible.builtin.apt:
+    name: zabbix-agent2-plugin-nginx
+    state: present
+  become: true
+  when: "'nginx_frontend' in group_names or 'wordpress_backends' in group_names"
+  notify: restart zabbix-agent2
+
+- name: Deploy Nginx plugin configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/zabbix/zabbix_agent2.d/plugins.d/nginx.conf
+    owner: root
+    group: zabbix
+    mode: "0640"
+  become: true
+  when: "'nginx_frontend' in group_names or 'wordpress_backends' in group_names"
   notify: restart zabbix-agent2
 
 # ── 6. Create zbx_monitor user on Patroni cluster ───────────

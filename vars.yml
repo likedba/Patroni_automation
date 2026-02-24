@@ -185,7 +185,7 @@ zabbix_hosts:
   - name: vmubuntu-1
     ip: "192.168.1.141"
     groups: ["Linux servers", "Web Frontend"]
-    templates: ["Linux by Zabbix agent"]
+    templates: ["Linux by Zabbix agent", "Nginx by Zabbix agent 2"]
   - name: vmubuntu-2
     ip: "192.168.1.142"
     groups: ["Linux servers"]
@@ -193,11 +193,29 @@ zabbix_hosts:
   - name: vmubuntu-3
     ip: "192.168.1.143"
     groups: ["Linux servers", "WordPress Backends"]
-    templates: ["Linux by Zabbix agent"]
+    templates: ["Linux by Zabbix agent", "Nginx by Zabbix agent 2", "PHP-FPM by Zabbix agent"]
+    macros:
+      - macro: "{$NGINX.STUB_STATUS.PORT}"
+        value: "8080"
+      - macro: "{$PHP_FPM.HOST}"
+        value: "127.0.0.1"
+      - macro: "{$PHP_FPM.PORT}"
+        value: "8080"
+      - macro: "{$PHP_FPM.STATUS.PAGE}"
+        value: "php-fpm-status"
   - name: vmubuntu-4
     ip: "192.168.1.144"
     groups: ["Linux servers", "WordPress Backends"]
-    templates: ["Linux by Zabbix agent"]
+    templates: ["Linux by Zabbix agent", "Nginx by Zabbix agent 2", "PHP-FPM by Zabbix agent"]
+    macros:
+      - macro: "{$NGINX.STUB_STATUS.PORT}"
+        value: "8080"
+      - macro: "{$PHP_FPM.HOST}"
+        value: "127.0.0.1"
+      - macro: "{$PHP_FPM.PORT}"
+        value: "8080"
+      - macro: "{$PHP_FPM.STATUS.PAGE}"
+        value: "php-fpm-status"
   - name: vmubuntu-5
     ip: "192.168.1.145"
     groups: ["Linux servers", "NFS Servers", "Backup Servers"]

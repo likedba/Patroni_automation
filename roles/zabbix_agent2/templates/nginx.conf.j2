@@ -1,0 +1,9 @@
+# Zabbix Agent 2 — Nginx plugin configuration
+# Managed by Ansible — do not edit manually
+
+Plugins.Nginx.System.Path=/usr/libexec/zabbix/zabbix-agent2-plugin-nginx
+{% if 'nginx_frontend' in group_names %}
+Plugins.Nginx.Default.Uri=http://127.0.0.1:80/basic_status
+{% elif 'wordpress_backends' in group_names %}
+Plugins.Nginx.Default.Uri=http://127.0.0.1:8080/basic_status
+{% endif %}

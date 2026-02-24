@@ -123,6 +123,9 @@
   loop:
     - linux-system-metrics.json
     - postgresql-metrics.json
+    - webapp-overview.json
+    - nginx-frontend-detailed.json
+    - backend-application.json
   notify: restart grafana-server
 
 # ── 8. Start and enable Grafana ──────────────────────────────

@@ -10,6 +10,20 @@ server {
 
     client_max_body_size 64M;
 
+    location = /basic_status {
+        stub_status;
+        allow 127.0.0.1;
+        deny all;
+    }
+
+    location = /php-fpm-status {
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $fastcgi_script_name;
+        include fastcgi_params;
+        allow 127.0.0.1;
+        deny all;
+    }
+
     set_real_ip_from {{ wp_frontend_ip }};
     real_ip_header X-Forwarded-For;
     real_ip_recursive on;
