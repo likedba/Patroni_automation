@@ -428,7 +428,7 @@ ssh vmubuntu-5 'crontab -l -u aleksei | grep sync'
 
 ---
 
-## DRP-8: vmubuntu-6 (Control node) — справка
+## DRP-8: vmubuntu-6 (Control node)
 
 **Восстановление**: из VM snapshot в vCenter.
 
