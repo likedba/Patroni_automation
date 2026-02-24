@@ -1,6 +1,4 @@
-# Patroni Automation
-
-Ansible-проект для автоматического развёртывания отказоустойчивой инфраструктуры на базе **PostgreSQL 18 + Patroni** с веб-приложением WordPress, мониторингом, централизованным логированием и резервным копированием.
+# Курсовой проект «Проектирование и автоматизация развертывания отказоустойчивой Linux-инфраструктуры веб-сервиса (Ansible/IaC, HA, PostgreSQL, Patroni, Zabbix, ELK)»
 
 Все VM создаются из шаблона в vCenter, конфигурируются через Ansible, секреты хранятся в HashiCorp Vault.
 
@@ -15,55 +13,6 @@ Ansible-проект для автоматического развёртыва�
 - **Secrets**: HashiCorp Vault
 - **DNS**: dnsmasq
 - **Provisioning**: VMware vCenter + ESXi
-
-## Быстрый старт
-
-```bash
-# Полное развёртывание всей инфраструктуры
-ansible-playbook playbooks/deploy_all.yml
-
-# Только Patroni-кластер + WordPress + NFS
-ansible-playbook playbooks/deploy_patroni_cluster.yml
-
-# Отдельные компоненты
-ansible-playbook playbooks/deploy_monitoring.yml
-ansible-playbook playbooks/deploy_logging.yml
-ansible-playbook playbooks/deploy_backup.yml
-```
-
-## Структура проекта
-
-```
-├── vars.yml                          # Все переменные (VM, сеть, кластер, Vault-lookup)
-├── playbooks/
-│   ├── deploy_all.yml                # Полное развёртывание
-│   ├── deploy_patroni_cluster.yml    # Patroni + WordPress + NFS + DNS
-│   ├── deploy_monitoring.yml         # Zabbix + Grafana + Agent2
-│   ├── deploy_logging.yml            # Docker + ELK + Filebeat
-│   └── deploy_backup.yml            # pg_probackup
-├── roles/
-│   ├── vm_provision/                 # Клонирование VM из шаблона vCenter
-│   ├── vault_passwords/             # Генерация и сохранение секретов в Vault
-│   ├── patroni_packages/            # Установка PostgreSQL, Patroni, etcd
-│   ├── etcd_setup/                  # Настройка etcd-кластера
-│   ├── patroni_setup/               # Настройка Patroni
-│   ├── patroni_db_config/           # Создание БД, пользователей, pg_hba
-│   ├── wordpress_backend/           # WordPress + PHP-FPM + pg4wp
-│   ├── nginx_frontend/              # NGINX reverse proxy + SSL
-│   ├── nfs_server/                  # NFS-сервер для shared uploads
-│   ├── monitoring_postgres/         # PostgreSQL для Zabbix/Grafana
-│   ├── zabbix_server/               # Zabbix Server + Web UI
-│   ├── zabbix_agent2/               # Zabbix Agent2 на всех узлах
-│   ├── zabbix_register/             # Регистрация хостов в Zabbix через API
-│   ├── grafana/                     # Grafana + дашборды
-│   ├── docker/                      # Docker на всех узлах
-│   ├── elk_stack/                   # ELK Stack (Docker Compose)
-│   ├── filebeat/                    # Filebeat-контейнеры
-│   └── pg_probackup/               # Резервное копирование
-├── inventories/                      # Inventory-файлы
-├── group_vars/                       # Групповые переменные
-└── collections/                      # Ansible-коллекции
-```
 
 ## Архитектура
 
@@ -131,5 +80,54 @@ graph TB
 | vmubuntu-6 | .146 | Ansible control node + DNS (dnsmasq) + Vault |
 | vmubuntu-7 | .147 | ELK Stack (Elasticsearch + Logstash + Kibana) |
 | vmubuntu-8 | .148 | Zabbix Server + Grafana + PostgreSQL 18 |
+
+## Структура проекта
+
+```
+├── vars.yml                          # Все переменные (VM, сеть, кластер, Vault-lookup)
+├── playbooks/
+│   ├── deploy_all.yml                # Полное развёртывание
+│   ├── deploy_patroni_cluster.yml    # Patroni + WordPress + NFS + DNS
+│   ├── deploy_monitoring.yml         # Zabbix + Grafana + Agent2
+│   ├── deploy_logging.yml            # Docker + ELK + Filebeat
+│   └── deploy_backup.yml            # pg_probackup
+├── roles/
+│   ├── vm_provision/                 # Клонирование VM из шаблона vCenter
+│   ├── vault_passwords/             # Генерация и сохранение секретов в Vault
+│   ├── patroni_packages/            # Установка PostgreSQL, Patroni, etcd
+│   ├── etcd_setup/                  # Настройка etcd-кластера
+│   ├── patroni_setup/               # Настройка Patroni
+│   ├── patroni_db_config/           # Создание БД, пользователей, pg_hba
+│   ├── wordpress_backend/           # WordPress + PHP-FPM + pg4wp
+│   ├── nginx_frontend/              # NGINX reverse proxy + SSL
+│   ├── nfs_server/                  # NFS-сервер для shared uploads
+│   ├── monitoring_postgres/         # PostgreSQL для Zabbix/Grafana
+│   ├── zabbix_server/               # Zabbix Server + Web UI
+│   ├── zabbix_agent2/               # Zabbix Agent2 на всех узлах
+│   ├── zabbix_register/             # Регистрация хостов в Zabbix через API
+│   ├── grafana/                     # Grafana + дашборды
+│   ├── docker/                      # Docker на всех узлах
+│   ├── elk_stack/                   # ELK Stack (Docker Compose)
+│   ├── filebeat/                    # Filebeat-контейнеры
+│   └── pg_probackup/               # Резервное копирование
+├── inventories/                      # Inventory-файлы
+├── group_vars/                       # Групповые переменные
+└── collections/                      # Ansible-коллекции
+```
+
+## Развертывание
+
+```bash
+# Полное развёртывание всей инфраструктуры
+ansible-playbook playbooks/deploy_all.yml
+
+# Только Patroni-кластер + WordPress + NFS
+ansible-playbook playbooks/deploy_patroni_cluster.yml
+
+# Отдельные компоненты
+ansible-playbook playbooks/deploy_monitoring.yml
+ansible-playbook playbooks/deploy_logging.yml
+ansible-playbook playbooks/deploy_backup.yml
+```
 
 *Все IP в подсети `192.168.1.0/24`. ESXi: `192.168.1.83`, vCenter: `192.168.1.140`.*

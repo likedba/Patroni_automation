@@ -292,8 +292,8 @@ ssh vmubuntu-8 'sudo -u postgres psql \
 
 ## DRP-4: vmubuntu-7 (ELK Stack)
 
-**Критичность**: НИЗКАЯ — логи можно потерять, накопятся заново.
-**Данные**: Elasticsearch индексы — НЕ бэкапируются (допустимая потеря).
+**Критичность**: НИЗКАЯ — логи можно потерять.
+**Данные**: Elasticsearch индексы — допустимая потеря.
 
 ```bash
 # 1. Пересоздать VM
@@ -327,7 +327,7 @@ curl -s "http://192.168.1.147:5601/api/saved_objects/_find?type=dashboard" \
   -H "kbn-xsrf: true" | python3 -c "import sys,json; print(f'Dashboards: {json.load(sys.stdin)[\"total\"]}')"
 ```
 
-**Примечание**: исторические логи будут потеряны. Elasticsearch начнёт накапливать данные заново. Дашборды и saved searches восстановятся автоматически через kibana_bootstrap.sh.
+**Примечание**: исторические логи будут потеряны. Elasticsearch начнёт накапливать данные заново. Дашборды и saved searches восстанавливаем через kibana_bootstrap.sh.
 
 ---
 
@@ -428,7 +428,7 @@ ssh vmubuntu-5 'crontab -l -u aleksei | grep sync'
 
 ---
 
-## DRP-8: vmubuntu-6 (Control node) — справка
+## DRP-8: vmubuntu-6 (Control node)
 
 **Восстановление**: из VM snapshot в vCenter.
 
@@ -465,37 +465,3 @@ cd ~/Patroni_automation && git pull
 
 ---
 
-## Проверка состояния бэкапов
-
-Выполнять еженедельно (рекомендуется в понедельник):
-
-```bash
-# 1. pg_probackup: статус бэкапов
-ssh vmubuntu-5 'sudo -u postgres pg_probackup-18 show -B /backup/postgres --instance=patroni'
-ssh vmubuntu-5 'sudo -u postgres pg_probackup-18 show -B /backup/postgres --instance=monitoring'
-
-# 2. Репликация на vmubuntu-2: последний sync
-ssh vmubuntu-5 'tail -5 /var/log/backup_sync.log'
-
-# 3. Размер бэкапов
-ssh vmubuntu-5 'sudo du -sh /backup/postgres/backups/patroni/ /backup/postgres/backups/monitoring/'
-ssh vmubuntu-2 'sudo du -sh /backup/postgres/backups/ /srv/nfs/wordpress/uploads/'
-
-# 4. NFS exports
-ssh vmubuntu-5 'showmount -e localhost'
-
-# 5. Patroni cluster health
-ssh vmpatronidb-1 'patronictl -c /etc/patroni/config.yml list'
-```
-
----
-
-## Тестирование DRP
-
-Рекомендуется проводить раз в месяц на stateless хосте:
-
-1. Выбрать хост (vmubuntu-1 или vmubuntu-7)
-2. Удалить VM в vCenter
-3. Восстановить по процедуре выше
-4. Проверить верификацию
-5. Зафиксировать время восстановления
