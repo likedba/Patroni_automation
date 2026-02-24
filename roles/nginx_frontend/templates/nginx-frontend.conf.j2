@@ -8,11 +8,11 @@ upstream wordpress_backends {
 server {
     listen 80 default_server;
     server_name _;
-    return 301 https://$host$request_uri;
+    return 301 https://$host:4433$request_uri;
 }
 
 server {
-    listen 443 ssl http2 default_server;
+    listen 4433 ssl http2 default_server;
     server_name _;
     add_header X-Frontend "{{ inventory_hostname }}" always;
     ssl_certificate     /etc/nginx/ssl/wordpress-front.crt;

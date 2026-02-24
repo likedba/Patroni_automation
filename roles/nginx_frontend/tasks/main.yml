@@ -92,10 +92,11 @@
     ufw default deny incoming
     ufw default allow outgoing
     ufw allow 80/tcp
-    ufw allow 443/tcp
+    ufw allow 4433/tcp
     ufw allow 22/tcp
+    ufw delete allow 443/tcp 2>/dev/null || true
     ufw --force enable
-  when: "'443' not in ufw_status.stdout"
+  when: "'4433' not in ufw_status.stdout"
   changed_when: true
   become: true
 
