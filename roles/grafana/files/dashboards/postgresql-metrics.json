@@ -20,7 +20,7 @@
         },
         "query": {
           "queryType": "host",
-          "group": "Patroni Cluster",
+          "group": "/Patroni Cluster|Monitoring Stack/",
           "host": "/.*/"
         },
         "multi": true,
@@ -36,7 +36,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "PostgreSQL: Connections",
+      "title": "Connections",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "datasource": {
@@ -46,11 +46,11 @@
       "targets": [
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL: Connections (sum|active|idle|waiting)/" },
+          "item": { "filter": "/Connections sum: (Total|Active|Idle|Waiting)/" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -75,7 +75,7 @@
     },
     {
       "id": 2,
-      "title": "PostgreSQL: Transactions per second",
+      "title": "Transactions per second",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "datasource": {
@@ -85,11 +85,11 @@
       "targets": [
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL: Transactions.*per second/" },
+          "item": { "filter": "/Dbstat: (Committed|Roll backed) transactions per second/" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -114,7 +114,7 @@
     },
     {
       "id": 3,
-      "title": "PostgreSQL: Cache hit ratio",
+      "title": "Cache hit ratio",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "datasource": {
@@ -124,11 +124,11 @@
       "targets": [
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL:.*cache hit ratio/" },
+          "item": { "filter": "Cache hit ratio, %" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -154,7 +154,7 @@
     },
     {
       "id": 4,
-      "title": "PostgreSQL: Database size",
+      "title": "Database size",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "datasource": {
@@ -164,11 +164,11 @@
       "targets": [
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL.*: Database size/" },
+          "item": { "filter": "/DB \\[.*\\]: Database size/" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -193,7 +193,7 @@
     },
     {
       "id": 5,
-      "title": "PostgreSQL: Tuples returned/fetched per second",
+      "title": "Rows returned / fetched per second",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "datasource": {
@@ -203,11 +203,11 @@
       "targets": [
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL.*: Tuples (returned|fetched) per second/" },
+          "item": { "filter": "/Dbstat: Rows (returned|fetched) per second/" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -232,7 +232,7 @@
     },
     {
       "id": 6,
-      "title": "PostgreSQL: Tuples inserted/updated/deleted per second",
+      "title": "Rows inserted / updated / deleted per second",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "datasource": {
@@ -242,11 +242,11 @@
       "targets": [
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL.*: Tuples (inserted|updated|deleted) per second/" },
+          "item": { "filter": "/Dbstat: Rows (inserted|updated|deleted) per second/" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -271,7 +271,7 @@
     },
     {
       "id": 7,
-      "title": "PostgreSQL: Locks",
+      "title": "Locks",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
       "datasource": {
@@ -281,11 +281,11 @@
       "targets": [
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL: Locks/" },
+          "item": { "filter": "/DB \\[.*\\]: Num of .* locks/" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -310,7 +310,7 @@
     },
     {
       "id": 8,
-      "title": "PostgreSQL: Uptime & Replication lag",
+      "title": "Uptime & Replication",
       "type": "stat",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "datasource": {
@@ -320,11 +320,11 @@
       "targets": [
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL: Uptime/" },
+          "item": { "filter": "Uptime" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -332,11 +332,11 @@
         },
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL: Replication.*lag/" },
+          "item": { "filter": "/Replication: (Lag in seconds|Status|Standby count)/" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -346,7 +346,17 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s"
-        }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": "/Standby count/" },
+            "properties": [{ "id": "unit", "value": "short" }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": "/Status/" },
+            "properties": [{ "id": "unit", "value": "short" }]
+          }
+        ]
       },
       "options": {
         "reduceOptions": { "calcs": ["last"] },
@@ -356,7 +366,7 @@
     },
     {
       "id": 9,
-      "title": "PostgreSQL: WAL write per second",
+      "title": "WAL write / receive per second",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
       "datasource": {
@@ -366,11 +376,11 @@
       "targets": [
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL: WAL.*per second/" },
+          "item": { "filter": "/WAL: Bytes (written|received)/" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -395,7 +405,7 @@
     },
     {
       "id": 10,
-      "title": "PostgreSQL: Deadlocks per second",
+      "title": "Deadlocks per second",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
       "datasource": {
@@ -405,11 +415,11 @@
       "targets": [
         {
           "queryType": "0",
-          "group": { "filter": "Patroni Cluster" },
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
           "host": { "filter": "$host" },
           "application": { "filter": "" },
           "itemTag": { "filter": "" },
-          "item": { "filter": "/PostgreSQL.*: Deadlocks per second/" },
+          "item": { "filter": "/Dbstat: Deadlocks per second/" },
           "functions": [],
           "options": {
             "showDisabledItems": false
@@ -419,6 +429,96 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Bgwriter: Buffers per second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/Bgwriter: Buffers.*per second/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        },
+        {
+          "queryType": "0",
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/Checkpoint: Buffers written.*per second/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Checkpoint: Write & Sync time per second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "PA67C5EADE9207728"
+      },
+      "targets": [
+        {
+          "queryType": "0",
+          "group": { "filter": "/Patroni Cluster|Monitoring Stack/" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/Checkpoint: (Requested|Scheduled|Checkpoint (write|sync) time) per second/" },
+          "functions": [],
+          "options": {
+            "showDisabledItems": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
           "min": 0,
           "custom": {
             "lineWidth": 1,

@@ -53,13 +53,13 @@
 - name: Flush handlers (apply config changes)
   ansible.builtin.meta: flush_handlers
 
-# ── 5. PostgreSQL plugin (patroni_nodes only) ────────────────
+# ── 5. PostgreSQL plugin (patroni_nodes + monitoring) ─────────
 - name: Install zabbix-agent2-plugin-postgresql
   ansible.builtin.apt:
     name: zabbix-agent2-plugin-postgresql
     state: present
   become: true
-  when: "'patroni_nodes' in group_names"
+  when: "'patroni_nodes' in group_names or 'monitoring' in group_names"
   notify: restart zabbix-agent2
 
 - name: Ensure plugins.d directory exists
@@ -70,7 +70,21 @@
     group: zabbix
     mode: "0750"
   become: true
-  when: "'patroni_nodes' in group_names"
+  when: "'patroni_nodes' in group_names or 'monitoring' in group_names"
+
+- name: Deploy plugins.d include configuration
+  ansible.builtin.copy:
+    content: |
+      # Include plugin configs from plugins.d directory
+      # Managed by Ansible — do not edit manually
+      Include=/etc/zabbix/zabbix_agent2.d/plugins.d/*.conf
+    dest: /etc/zabbix/zabbix_agent2.d/plugins.d.include.conf
+    owner: root
+    group: zabbix
+    mode: "0640"
+  become: true
+  when: "'patroni_nodes' in group_names or 'monitoring' in group_names"
+  notify: restart zabbix-agent2
 
 - name: Deploy PostgreSQL plugin configuration
   ansible.builtin.template:
@@ -80,29 +94,41 @@
     group: zabbix
     mode: "0640"
   become: true
-  when: "'patroni_nodes' in group_names"
+  when: "'patroni_nodes' in group_names or 'monitoring' in group_names"
   notify: restart zabbix-agent2
 
 # ── 6. Create zbx_monitor user on Patroni cluster ───────────
+#   delegate_to first patroni node to avoid run_once+when race condition
 - name: Create zbx_monitor user on Patroni cluster
   ansible.builtin.shell: |
     sudo -u postgres psql \
       "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432 dbname=postgres user=postgres target_session_attrs=read-write connect_timeout=3" \
       -c "DO \$\$ BEGIN CREATE USER zbx_monitor WITH PASSWORD '{{ zbx_monitor_pass }}'; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
+  delegate_to: "{{ groups['patroni_nodes'][0] }}"
   run_once: true
   changed_when: false
   become: true
-  when: "'patroni_nodes' in group_names"
+
+- name: Update zbx_monitor password on Patroni cluster (sync with Vault)
+  ansible.builtin.shell: |
+    sudo -u postgres psql \
+      "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432 dbname=postgres user=postgres target_session_attrs=read-write connect_timeout=3" \
+      -c "ALTER USER zbx_monitor WITH PASSWORD '{{ zbx_monitor_pass }}';"
+  delegate_to: "{{ groups['patroni_nodes'][0] }}"
+  run_once: true
+  changed_when: false
+  no_log: true
+  become: true
 
 - name: Grant pg_monitor role to zbx_monitor on Patroni cluster
   ansible.builtin.shell: |
     sudo -u postgres psql \
       "host={{ node1_ip }},{{ node2_ip }},{{ node3_ip }} port=5432 dbname=postgres user=postgres target_session_attrs=read-write connect_timeout=3" \
       -c "GRANT pg_monitor TO zbx_monitor;"
+  delegate_to: "{{ groups['patroni_nodes'][0] }}"
   run_once: true
   changed_when: false
   become: true
-  when: "'patroni_nodes' in group_names"
 
 - name: Flush handlers (restart agent after plugin install)
   ansible.builtin.meta: flush_handlers
