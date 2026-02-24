@@ -117,6 +117,13 @@
   become: true
 
 # ── 5. Deploy sync script ──────────────────────────────────
+- name: Ensure /backup directory is traversable by aleksei
+  ansible.builtin.file:
+    path: /backup
+    state: directory
+    mode: "0755"
+  become: true
+
 - name: Deploy sync script
   ansible.builtin.template:
     src: sync_to_replica.sh.j2
