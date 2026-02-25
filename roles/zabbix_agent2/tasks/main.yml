@@ -122,6 +122,8 @@
   become: true
   register: zbx_user_check
   failed_when: false
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
 
 - name: Create zbx_monitor user on Patroni cluster
   ansible.builtin.shell: |
@@ -133,6 +135,8 @@
   changed_when: false
   become: true
   when: zbx_user_check.stdout | default('') | trim != '1'
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
 
 - name: Update zbx_monitor password on Patroni cluster (sync with Vault)
   ansible.builtin.shell: |
@@ -145,6 +149,8 @@
   no_log: true
   become: true
   when: zbx_user_check.stdout | default('') | trim != '1'
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
 
 - name: Grant pg_monitor role to zbx_monitor on Patroni cluster
   ansible.builtin.shell: |
@@ -156,6 +162,8 @@
   changed_when: false
   become: true
   when: zbx_user_check.stdout | default('') | trim != '1'
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
 
 - name: Flush handlers (restart agent after plugin install)
   ansible.builtin.meta: flush_handlers
