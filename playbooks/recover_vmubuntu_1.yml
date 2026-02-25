@@ -1,0 +1,89 @@
+---
+# ─────────────────────────────────────────────────────────────
+# Recovery: vmubuntu-1 (nginx frontend)
+#
+# Usage:
+#   ansible-playbook playbooks/recover_vmubuntu_1.yml
+# ─────────────────────────────────────────────────────────────
+
+# ── 1. Provision VM ──────────────────────────────────────────
+- name: Provision vmubuntu-1 from vCenter template
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Provision VM
+      include_role:
+        name: vm_provision
+      vars:
+        vms_to_provision: "{{ infra_vms | selectattr('name', 'equalto', 'vmubuntu-1') | list }}"
+
+# ── 2. Deploy nginx frontend ────────────────────────────────
+- name: Deploy nginx frontend on vmubuntu-1
+  hosts: nginx_frontend
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Configure nginx frontend
+      include_role:
+        name: nginx_frontend
+
+# ── 3. Deploy zabbix-agent2 ─────────────────────────────────
+- name: Deploy zabbix-agent2 on vmubuntu-1
+  hosts: nginx_frontend
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install and configure zabbix-agent2
+      include_role:
+        name: zabbix_agent2
+
+# ── 4. Deploy Docker + Filebeat ──────────────────────────────
+- name: Deploy Docker and Filebeat on vmubuntu-1
+  hosts: nginx_frontend
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install Docker CE
+      include_role:
+        name: docker
+
+    - name: Install and configure Filebeat
+      include_role:
+        name: filebeat

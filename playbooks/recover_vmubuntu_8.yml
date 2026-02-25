@@ -1,0 +1,146 @@
+---
+# ─────────────────────────────────────────────────────────────
+# Recovery: vmubuntu-8 (Monitoring: PostgreSQL + Zabbix + Grafana)
+#
+# Usage:
+#   ansible-playbook playbooks/recover_vmubuntu_8.yml
+# ─────────────────────────────────────────────────────────────
+
+# ── 1. Provision VM + ensure passwords ───────────────────────
+- name: Provision vmubuntu-8 from vCenter template
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Ensure vault passwords are up to date
+      include_role:
+        name: vault_passwords
+
+    - name: Provision VM
+      include_role:
+        name: vm_provision
+      vars:
+        vms_to_provision: "{{ infra_vms | selectattr('name', 'equalto', 'vmubuntu-8') | list }}"
+
+# ── 2. Deploy PostgreSQL 18 for monitoring ───────────────────
+- name: Deploy PostgreSQL 18 on vmubuntu-8
+  hosts: monitoring
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install and configure PostgreSQL 18
+      include_role:
+        name: monitoring_postgres
+
+# ── 3. Deploy Zabbix Server 7.4 + Web ───────────────────────
+- name: Deploy Zabbix Server on vmubuntu-8
+  hosts: monitoring
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install and configure Zabbix Server + Web
+      include_role:
+        name: zabbix_server
+
+# ── 4. Deploy Grafana ────────────────────────────────────────
+- name: Deploy Grafana on vmubuntu-8
+  hosts: monitoring
+  gather_facts: false
+  become: true
+  vars_files:
+    - "{{ playbook_dir }}/../vars.yml"
+  vars:
+    ansible_become_password: "{{ aleksei_user_pass }}"
+  tasks:
+    - name: Install and configure Grafana
+      include_role:
+        name: grafana
+
+# ── 5. Deploy zabbix-agent2 ─────────────────────────────────
+- name: Deploy zabbix-agent2 on vmubuntu-8
+  hosts: monitoring
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install and configure zabbix-agent2
+      include_role:
+        name: zabbix_agent2
+
+# ── 6. Register all hosts in Zabbix ─────────────────────────
+- name: Register hosts in Zabbix via API
+  hosts: zabbix_api
+  gather_facts: false
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Set Zabbix API password
+      set_fact:
+        ansible_httpapi_pass: "{{ zabbix_admin_pass }}"
+      no_log: true
+  tasks:
+    - name: Register hosts in Zabbix
+      include_role:
+        name: zabbix_register
+
+# ── 7. Deploy Docker + Filebeat ──────────────────────────────
+- name: Deploy Docker and Filebeat on vmubuntu-8
+  hosts: monitoring
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install Docker CE
+      include_role:
+        name: docker
+
+    - name: Install and configure Filebeat
+      include_role:
+        name: filebeat

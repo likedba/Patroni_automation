@@ -1,0 +1,108 @@
+---
+# ─────────────────────────────────────────────────────────────
+# Recovery: WordPress backend (vmubuntu-3 or vmubuntu-4)
+#
+# Usage:
+#   ansible-playbook playbooks/recover_wordpress_backend.yml -e "target_node=vmubuntu-3"
+#   ansible-playbook playbooks/recover_wordpress_backend.yml -e "target_node=vmubuntu-4"
+# ─────────────────────────────────────────────────────────────
+
+# ── 1. Validate input ────────────────────────────────────────
+- name: Validate recovery target
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Assert target_node is defined and valid
+      ansible.builtin.assert:
+        that:
+          - target_node is defined
+          - target_node in groups['wordpress_backends']
+        fail_msg: >-
+          target_node must be one of: {{ groups['wordpress_backends'] | join(', ') }}.
+          Usage: ansible-playbook recover_wordpress_backend.yml -e "target_node=vmubuntu-3"
+
+# ── 2. Provision VM ──────────────────────────────────────────
+- name: Provision {{ target_node }} from vCenter template
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Provision VM
+      include_role:
+        name: vm_provision
+      vars:
+        vms_to_provision: "{{ infra_vms | selectattr('name', 'equalto', target_node) | list }}"
+
+# ── 3. Deploy WordPress backend ─────────────────────────────
+- name: Deploy WordPress backend on {{ target_node }}
+  hosts: "{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Configure WordPress backend
+      include_role:
+        name: wordpress_backend
+
+# ── 4. Deploy zabbix-agent2 ─────────────────────────────────
+- name: Deploy zabbix-agent2 on {{ target_node }}
+  hosts: "{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install and configure zabbix-agent2
+      include_role:
+        name: zabbix_agent2
+
+# ── 5. Deploy Docker + Filebeat ──────────────────────────────
+- name: Deploy Docker and Filebeat on {{ target_node }}
+  hosts: "{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install Docker CE
+      include_role:
+        name: docker
+
+    - name: Install and configure Filebeat
+      include_role:
+        name: filebeat

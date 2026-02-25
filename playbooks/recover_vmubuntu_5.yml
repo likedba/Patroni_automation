@@ -1,0 +1,135 @@
+---
+# ─────────────────────────────────────────────────────────────
+# Recovery: vmubuntu-5 (NFS server + pg_probackup)
+#
+# Usage:
+#   ansible-playbook playbooks/recover_vmubuntu_5.yml
+# ─────────────────────────────────────────────────────────────
+
+# ── 1. Provision VM ──────────────────────────────────────────
+- name: Provision vmubuntu-5 from vCenter template
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Ensure vault passwords are up to date
+      include_role:
+        name: vault_passwords
+
+    - name: Provision VM
+      include_role:
+        name: vm_provision
+      vars:
+        vms_to_provision: "{{ infra_vms | selectattr('name', 'equalto', 'vmubuntu-5') | list }}"
+
+# ── 2. Deploy NFS server ────────────────────────────────────
+- name: Deploy NFS server on vmubuntu-5
+  hosts: nfs_servers
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Configure NFS server
+      include_role:
+        name: nfs_server
+
+# ── 3. Deploy pg_probackup ──────────────────────────────────
+- name: Deploy pg_probackup backup server on vmubuntu-5
+  hosts: backup
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install and configure pg_probackup
+      include_role:
+        name: pg_probackup
+
+# ── 4. Deploy backup replication ─────────────────────────────
+- name: Configure backup replication to vmubuntu-2
+  hosts: backup
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Configure replication to backup replica
+      include_role:
+        name: backup_replication
+
+# ── 5. Deploy zabbix-agent2 ─────────────────────────────────
+- name: Deploy zabbix-agent2 on vmubuntu-5
+  hosts: backup
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install and configure zabbix-agent2
+      include_role:
+        name: zabbix_agent2
+
+# ── 6. Deploy Docker + Filebeat ──────────────────────────────
+- name: Deploy Docker and Filebeat on vmubuntu-5
+  hosts: backup
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install Docker CE
+      include_role:
+        name: docker
+
+    - name: Install and configure Filebeat
+      include_role:
+        name: filebeat
