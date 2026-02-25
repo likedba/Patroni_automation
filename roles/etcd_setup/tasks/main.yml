@@ -31,12 +31,14 @@
   run_once: true
   changed_when: false
   become: false
+  when: ansible_play_hosts | length == groups['patroni_nodes'] | length
 
 - name: Display etcd cluster status
   ansible.builtin.debug:
     msg: "{{ etcd_status.stdout_lines }}"
   run_once: true
   become: false
+  when: etcd_status is not skipped
 
 - name: Verify all 3 etcd endpoints are healthy
   ansible.builtin.assert:
@@ -46,3 +48,4 @@
     fail_msg: "etcd cluster is not healthy — expected 3 endpoints, check output above"
   run_once: true
   become: false
+  when: etcd_status is not skipped

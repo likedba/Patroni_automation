@@ -80,6 +80,7 @@
     seconds: 15
   run_once: true
   become: false
+  when: ansible_play_hosts | length == groups['patroni_nodes'] | length
 
 - name: Check Patroni cluster status
   ansible.builtin.command:
@@ -88,12 +89,14 @@
   run_once: true
   changed_when: false
   become: true
+  when: ansible_play_hosts | length == groups['patroni_nodes'] | length
 
 - name: Display Patroni cluster status
   ansible.builtin.debug:
     msg: "{{ patroni_status.stdout_lines }}"
   run_once: true
   become: false
+  when: patroni_status is not skipped
 
 - name: Verify all 3 Patroni nodes are running
   ansible.builtin.assert:
@@ -103,3 +106,4 @@
     fail_msg: "Patroni cluster is not healthy — expected 3 nodes, check output above"
   run_once: true
   become: false
+  when: patroni_status is not skipped

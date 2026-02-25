@@ -4,7 +4,7 @@ ETCD_LISTEN_PEER_URLS="http://{{ ansible_host }}:2380"
 ETCD_LISTEN_CLIENT_URLS="http://localhost:2379,http://{{ ansible_host }}:2379"
 ETCD_INITIAL_ADVERTISE_PEER_URLS="http://{{ ansible_host }}:2380"
 ETCD_INITIAL_CLUSTER="etcd_{{ node1_hostname }}=http://{{ node1_ip }}:2380,etcd_{{ node2_hostname }}=http://{{ node2_ip }}:2380,etcd_{{ node3_hostname }}=http://{{ node3_ip }}:2380"
-ETCD_INITIAL_CLUSTER_STATE="new"
+ETCD_INITIAL_CLUSTER_STATE="{{ etcd_initial_cluster_state | default('new') }}"
 ETCD_INITIAL_CLUSTER_TOKEN="{{ project_name }}-cluster"
 ETCD_ADVERTISE_CLIENT_URLS="http://{{ ansible_host }}:2379"
 ETCD_AUTO_COMPACTION_MODE=periodic

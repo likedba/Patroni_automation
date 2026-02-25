@@ -1,0 +1,308 @@
+---
+# ─────────────────────────────────────────────────────────────
+# Recovery playbook for a single Patroni node
+#
+# Automates the full recovery procedure:
+#   VM provisioning → package install → etcd member recovery →
+#   Patroni setup → monitoring agent → Docker + Filebeat
+#
+# Usage:
+#   ansible-playbook playbooks/recover_patroni_node.yml -e "target_node=vmpatronidb-1"
+#
+# Prerequisites:
+#   - At least 2 of 3 Patroni nodes must be running (etcd quorum)
+#   - Vault must be accessible from control node
+# ─────────────────────────────────────────────────────────────
+
+# ── 1. Validate input ────────────────────────────────────────
+- name: Validate recovery target
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Assert target_node is defined and valid
+      ansible.builtin.assert:
+        that:
+          - target_node is defined
+          - target_node in groups['patroni_nodes']
+        fail_msg: >-
+          target_node must be one of: {{ groups['patroni_nodes'] | join(', ') }}.
+          Usage: ansible-playbook recover_patroni_node.yml -e "target_node=vmpatronidb-1"
+
+    - name: Display recovery target
+      ansible.builtin.debug:
+        msg: "Recovering Patroni node: {{ target_node }} ({{ hostvars[target_node].ansible_host }})"
+
+# ── 2. Provision VM from vCenter template ────────────────────
+- name: Provision target VM from template
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Provision VM
+      include_role:
+        name: vm_provision
+      vars:
+        vms_to_provision: "{{ patroni_vms | selectattr('name', 'equalto', target_node) | list }}"
+
+# ── 3. Install packages ─────────────────────────────────────
+- name: Install Patroni cluster packages on recovered node
+  hosts: "{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install packages and stop services
+      include_role:
+        name: patroni_packages
+
+# ── 4. etcd member recovery (runs on a live node) ───────────
+- name: Recover etcd cluster membership
+  hosts: "patroni_nodes:!{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Get etcd member ID for {{ target_node }}
+      ansible.builtin.shell: |
+        etcdctl member list | grep "etcd_{{ target_node }}" | awk -F',' '{print $1}' | tr -d ' '
+      register: old_member_id
+      run_once: true
+      changed_when: false
+
+    - name: Display old etcd member ID
+      ansible.builtin.debug:
+        msg: >-
+          etcd member ID for {{ target_node }}:
+          {{ old_member_id.stdout if old_member_id.stdout | length > 0 else '(not found — already removed)' }}
+      run_once: true
+
+    - name: Remove old etcd member from cluster
+      ansible.builtin.command: "etcdctl member remove {{ old_member_id.stdout }}"
+      run_once: true
+      when: old_member_id.stdout | length > 0
+
+    - name: Add {{ target_node }} back to etcd cluster
+      ansible.builtin.command: >
+        etcdctl member add etcd_{{ target_node }}
+        --peer-urls=http://{{ hostvars[target_node].ansible_host }}:2380
+      run_once: true
+
+    - name: Verify etcd cluster accepts new member
+      ansible.builtin.command: etcdctl member list
+      register: etcd_after_add
+      run_once: true
+      changed_when: false
+
+    - name: Display etcd membership after recovery
+      ansible.builtin.debug:
+        msg: "{{ etcd_after_add.stdout_lines }}"
+      run_once: true
+
+# ── 5. Prepare and start etcd on recovered node ─────────────
+- name: Configure and start etcd on recovered node
+  hosts: "{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Stop etcd service (if running)
+      ansible.builtin.systemd:
+        name: etcd
+        state: stopped
+      failed_when: false
+
+    - name: Remove stale etcd data directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/var/lib/etcd/{{ inventory_hostname }}.etcd"
+        - /var/lib/etcd/default
+
+    - name: Deploy etcd configuration and start service
+      include_role:
+        name: etcd_setup
+      vars:
+        etcd_initial_cluster_state: "existing"
+
+# ── 6. Configure and start Patroni ──────────────────────────
+- name: Configure and start Patroni on recovered node
+  hosts: "{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Configure and start Patroni
+      include_role:
+        name: patroni_setup
+
+    - name: Deploy .pgpass for postgres user
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../roles/patroni_db_config/templates/pgpass.j2"
+        dest: /var/lib/postgresql/.pgpass
+        owner: postgres
+        group: postgres
+        mode: '0600'
+
+# ── 7. Deploy monitoring agent ──────────────────────────────
+- name: Deploy zabbix-agent2 on recovered node
+  hosts: "{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install and configure zabbix-agent2
+      include_role:
+        name: zabbix_agent2
+
+# ── 8. Deploy Docker + Filebeat ──────────────────────────────
+- name: Deploy Docker and Filebeat on recovered node
+  hosts: "{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Install Docker CE
+      include_role:
+        name: docker
+
+    - name: Install and configure Filebeat
+      include_role:
+        name: filebeat
+
+# ── 9. Verify recovery ──────────────────────────────────────
+- name: Verify recovered node
+  hosts: "{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Check etcd cluster health
+      ansible.builtin.command: >
+        etcdctl endpoint status -w table
+        --endpoints={{ node1_ip }}:2379,{{ node2_ip }}:2379,{{ node3_ip }}:2379
+      register: etcd_final
+      changed_when: false
+
+    - name: Display etcd cluster status
+      ansible.builtin.debug:
+        msg: "{{ etcd_final.stdout_lines }}"
+
+    - name: Check Patroni cluster status
+      ansible.builtin.command:
+        cmd: patronictl -c /etc/patroni/config.yml list
+      register: patroni_final
+      changed_when: false
+
+    - name: Display Patroni cluster status
+      ansible.builtin.debug:
+        msg: "{{ patroni_final.stdout_lines }}"
+
+    - name: Verify all 3 etcd endpoints are healthy
+      ansible.builtin.assert:
+        that:
+          - etcd_final.rc == 0
+          - etcd_final.stdout_lines | select('search', ':2379') | list | length == 3
+        fail_msg: "etcd cluster is not fully healthy after recovery"
+
+    - name: Verify all 3 Patroni nodes are running
+      ansible.builtin.assert:
+        that:
+          - patroni_final.rc == 0
+          - patroni_final.stdout_lines | select('search', 'running|streaming') | list | length == 3
+        fail_msg: "Patroni cluster is not fully healthy after recovery — check output above"
+
+    - name: Verify zabbix-agent2 is responding
+      ansible.builtin.command:
+        cmd: zabbix_agent2 -t agent.ping
+      register: agent_ping
+      changed_when: false
+
+    - name: Display agent status
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ agent_ping.stdout }}"
+
+    - name: Recovery complete
+      ansible.builtin.debug:
+        msg: >-
+          Node {{ target_node }} recovered successfully.
+          etcd: 3/3 endpoints healthy.
+          Patroni: {{ patroni_final.stdout_lines | select('search', 'running|streaming') | list | length }}/3 nodes running.
+          Zabbix agent: {{ agent_ping.stdout }}.

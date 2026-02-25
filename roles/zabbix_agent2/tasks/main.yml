@@ -111,6 +111,18 @@
 
 # ── 6. Create zbx_monitor user on Patroni cluster ───────────
 #   delegate_to first patroni node to avoid run_once+when race condition
+#   Check via local Unix socket (trust auth) to avoid hanging without .pgpass
+- name: Check if zbx_monitor user already exists
+  ansible.builtin.shell: |
+    sudo -u postgres psql -tAc \
+      "SELECT 1 FROM pg_roles WHERE rolname='zbx_monitor'"
+  delegate_to: "{{ groups['patroni_nodes'][0] }}"
+  run_once: true
+  changed_when: false
+  become: true
+  register: zbx_user_check
+  failed_when: false
+
 - name: Create zbx_monitor user on Patroni cluster
   ansible.builtin.shell: |
     sudo -u postgres psql \
@@ -120,6 +132,7 @@
   run_once: true
   changed_when: false
   become: true
+  when: zbx_user_check.stdout | default('') | trim != '1'
 
 - name: Update zbx_monitor password on Patroni cluster (sync with Vault)
   ansible.builtin.shell: |
@@ -131,6 +144,7 @@
   changed_when: false
   no_log: true
   become: true
+  when: zbx_user_check.stdout | default('') | trim != '1'
 
 - name: Grant pg_monitor role to zbx_monitor on Patroni cluster
   ansible.builtin.shell: |
@@ -141,6 +155,7 @@
   run_once: true
   changed_when: false
   become: true
+  when: zbx_user_check.stdout | default('') | trim != '1'
 
 - name: Flush handlers (restart agent after plugin install)
   ansible.builtin.meta: flush_handlers
