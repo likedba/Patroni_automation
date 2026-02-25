@@ -56,9 +56,13 @@
 - name: Start Filebeat container
   ansible.builtin.command:
     cmd: docker compose -f /opt/filebeat/docker-compose.yml up -d
+  register: fb_start
   become: true
   when: fb_container.stdout == ""
   changed_when: true
+  retries: 3
+  delay: 15
+  until: fb_start.rc == 0
 
 - name: Flush handlers (apply config changes)
   ansible.builtin.meta: flush_handlers
