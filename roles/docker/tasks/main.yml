@@ -66,7 +66,21 @@
     append: true
   become: true
 
-# ── 5. Start and enable Docker ────────────────────────────────
+# ── 5. Docker DNS fallback ───────────────────────────────────
+- name: Configure Docker DNS (local + public fallback)
+  ansible.builtin.copy:
+    content: |
+      {
+        "dns": ["192.168.1.146", "8.8.8.8", "1.1.1.1"]
+      }
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: restart docker
+
+# ── 6. Start and enable Docker ────────────────────────────────
 - name: Start and enable Docker service
   ansible.builtin.systemd:
     name: docker

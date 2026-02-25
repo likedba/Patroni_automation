@@ -57,9 +57,13 @@
 - name: Start ELK stack
   ansible.builtin.command:
     cmd: docker compose -f /opt/elk/docker-compose.yml up -d
+  register: elk_start
   become: true
   when: elk_containers.stdout == ""
   changed_when: true
+  retries: 3
+  delay: 15
+  until: elk_start.rc == 0
 
 - name: Flush handlers (apply config changes)
   ansible.builtin.meta: flush_handlers
