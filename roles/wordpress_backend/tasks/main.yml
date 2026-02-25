@@ -102,6 +102,10 @@
     cmd: curl -4 -fsSL -o /tmp/wordpress-latest.tar.gz https://wordpress.org/latest.tar.gz
   when: not wp_deployed.stat.exists
   changed_when: true
+  register: dl_wordpress
+  retries: 3
+  delay: 10
+  until: dl_wordpress.rc == 0
 
 - name: Extract WordPress archive
   ansible.builtin.unarchive:
@@ -153,6 +157,10 @@
     cmd: curl -4 -fsSL -o /tmp/pg4wp-v3.3.1.tar.gz https://github.com/PostgreSQL-For-Wordpress/postgresql-for-wordpress/archive/refs/tags/v3.3.1.tar.gz
   when: not pg4wp_deployed.stat.exists
   changed_when: true
+  register: dl_pg4wp
+  retries: 3
+  delay: 10
+  until: dl_pg4wp.rc == 0
 
 - name: Extract pg4wp archive
   ansible.builtin.unarchive:
@@ -284,6 +292,10 @@
   when: not wpcli_stat.stat.exists
   become: true
   changed_when: true
+  register: dl_wpcli
+  retries: 3
+  delay: 10
+  until: dl_wpcli.rc == 0
 
 # ── 11. WordPress core install (first backend only) ──────────
 - name: Check if WordPress core is already installed

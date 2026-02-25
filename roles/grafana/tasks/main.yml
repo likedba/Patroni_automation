@@ -14,6 +14,10 @@
   when: grafana_installed.rc != 0
   become: false
   changed_when: true
+  register: dl_grafana
+  retries: 3
+  delay: 10
+  until: dl_grafana.rc == 0
 
 - name: Install Grafana OSS
   ansible.builtin.apt:

@@ -10,6 +10,10 @@
     cmd: curl -4 -fsSL -o /tmp/zabbix-release.deb https://repo.zabbix.com/zabbix/7.4/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.4+ubuntu24.04_all.deb
   when: not zabbix_repo.stat.exists
   changed_when: true
+  register: dl_zabbix_repo
+  retries: 3
+  delay: 10
+  until: dl_zabbix_repo.rc == 0
 
 - name: Install Zabbix repository package
   ansible.builtin.apt:

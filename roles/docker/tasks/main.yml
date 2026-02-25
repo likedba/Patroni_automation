@@ -45,6 +45,10 @@
   become: true
   when: not docker_gpg_key.stat.exists
   changed_when: true
+  register: dl_docker_gpg
+  retries: 3
+  delay: 10
+  until: dl_docker_gpg.rc == 0
 
 - name: Add Docker apt repository
   ansible.builtin.shell: |
