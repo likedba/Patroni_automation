@@ -46,6 +46,12 @@
   gather_facts: false
   become: true
   pre_tasks:
+    - name: Wait for SSH to be fully ready
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+        delay: 10
+      become: false
+
     - name: Load project variables
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"

@@ -27,6 +27,13 @@
   gather_facts: false
   become: true
   pre_tasks:
+    - name: Wait for SSH to be fully ready on vmubuntu-2
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+        delay: 10
+      delegate_to: vmubuntu-2
+      become: false
+
     - name: Load project variables
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
