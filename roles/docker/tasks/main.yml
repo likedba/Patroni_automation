@@ -1,4 +1,17 @@
 ---
+# ── 0. Disable IPv6 (Docker image pulls fail over IPv6 in this network)
+- name: Disable IPv6 to prevent Docker pull failures
+  ansible.builtin.sysctl:
+    name: "{{ item }}"
+    value: "1"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - net.ipv6.conf.all.disable_ipv6
+    - net.ipv6.conf.default.disable_ipv6
+  become: true
+
 # ── 1. Install prerequisites ──────────────────────────────────
 - name: Install Docker prerequisites
   ansible.builtin.apt:
