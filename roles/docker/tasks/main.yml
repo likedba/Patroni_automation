@@ -39,13 +39,12 @@
   become: true
   when: not docker_gpg_key.stat.exists
 
-- name: Download Docker GPG key
-  ansible.builtin.get_url:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    dest: /etc/apt/keyrings/docker.asc
-    mode: "0644"
+- name: Download Docker GPG key (force IPv4)
+  ansible.builtin.shell:
+    cmd: curl -4 -fsSL -o /etc/apt/keyrings/docker.asc https://download.docker.com/linux/ubuntu/gpg
   become: true
   when: not docker_gpg_key.stat.exists
+  changed_when: true
 
 - name: Add Docker apt repository
   ansible.builtin.shell: |
