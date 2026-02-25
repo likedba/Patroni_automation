@@ -8,13 +8,12 @@
   changed_when: false
   become: false
 
-- name: Download Grafana OSS deb package
-  ansible.builtin.get_url:
-    url: https://dl.grafana.com/oss/release/grafana_11.5.1_amd64.deb
-    dest: /tmp/grafana.deb
-    mode: "0644"
+- name: Download Grafana OSS deb package (force IPv4)
+  ansible.builtin.shell:
+    cmd: curl -4 -fsSL -o /tmp/grafana.deb https://dl.grafana.com/oss/release/grafana_11.5.1_amd64.deb
   when: grafana_installed.rc != 0
   become: false
+  changed_when: true
 
 - name: Install Grafana OSS
   ansible.builtin.apt:

@@ -97,12 +97,11 @@
     path: /var/www/html/wp-includes/version.php
   register: wp_deployed
 
-- name: Download WordPress
-  ansible.builtin.get_url:
-    url: https://wordpress.org/latest.tar.gz
-    dest: /tmp/wordpress-latest.tar.gz
-    mode: "0644"
+- name: Download WordPress (force IPv4)
+  ansible.builtin.shell:
+    cmd: curl -4 -fsSL -o /tmp/wordpress-latest.tar.gz https://wordpress.org/latest.tar.gz
   when: not wp_deployed.stat.exists
+  changed_when: true
 
 - name: Extract WordPress archive
   ansible.builtin.unarchive:
@@ -149,12 +148,11 @@
     path: /var/www/html/wp-content/pg4wp/driver_pgsql.php
   register: pg4wp_deployed
 
-- name: Download pg4wp plugin
-  ansible.builtin.get_url:
-    url: https://github.com/PostgreSQL-For-Wordpress/postgresql-for-wordpress/archive/refs/tags/v3.3.1.tar.gz
-    dest: /tmp/pg4wp-v3.3.1.tar.gz
-    mode: "0644"
+- name: Download pg4wp plugin (force IPv4)
+  ansible.builtin.shell:
+    cmd: curl -4 -fsSL -o /tmp/pg4wp-v3.3.1.tar.gz https://github.com/PostgreSQL-For-Wordpress/postgresql-for-wordpress/archive/refs/tags/v3.3.1.tar.gz
   when: not pg4wp_deployed.stat.exists
+  changed_when: true
 
 - name: Extract pg4wp archive
   ansible.builtin.unarchive:
@@ -280,13 +278,12 @@
     path: /usr/local/bin/wp
   register: wpcli_stat
 
-- name: Download and install WP-CLI
-  ansible.builtin.get_url:
-    url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-    dest: /usr/local/bin/wp
-    mode: "0755"
+- name: Download and install WP-CLI (force IPv4)
+  ansible.builtin.shell:
+    cmd: curl -4 -fsSL -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod 0755 /usr/local/bin/wp
   when: not wpcli_stat.stat.exists
   become: true
+  changed_when: true
 
 # ── 11. WordPress core install (first backend only) ──────────
 - name: Check if WordPress core is already installed

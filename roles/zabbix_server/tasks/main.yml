@@ -5,12 +5,11 @@
     path: /etc/apt/sources.list.d/zabbix.list
   register: zabbix_repo
 
-- name: Download Zabbix 7.4 repository package
-  ansible.builtin.get_url:
-    url: https://repo.zabbix.com/zabbix/7.4/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.4+ubuntu24.04_all.deb
-    dest: /tmp/zabbix-release.deb
-    mode: "0644"
+- name: Download Zabbix 7.4 repository package (force IPv4)
+  ansible.builtin.shell:
+    cmd: curl -4 -fsSL -o /tmp/zabbix-release.deb https://repo.zabbix.com/zabbix/7.4/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.4+ubuntu24.04_all.deb
   when: not zabbix_repo.stat.exists
+  changed_when: true
 
 - name: Install Zabbix repository package
   ansible.builtin.apt:
