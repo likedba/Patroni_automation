@@ -37,6 +37,9 @@ vcenter_network: "VM Network"
 vcenter_template: "ubuntu_template"
 vcenter_esxi_host: "192.168.1.83"                  # физический ESXi хост внутри vCenter (зарегистрирован по IP)
 
+# SSH public key для инъекции в новые VM после клонирования (из ~/.ssh/id_ed25519.pub на control node)
+ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKWt+gyzzyJrFaX3ShEBSSOwBUAJkFKA5ABmGGvSXXvO aleksei@vmubuntu-6"
+
 # =========================
 # VM hardware
 # Disk не указываем — наследуется из шаблона

@@ -54,3 +54,23 @@
     delay: 15
   loop: "{{ vms_to_provision }}"
   delegate_to: localhost
+
+- name: Inject SSH public key via VMware Tools
+  community.vmware.vmware_vm_shell:
+    hostname: "{{ vcenter_hostname }}"
+    username: "{{ vcenter_username }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: "{{ vcenter_validate_certs }}"
+    datacenter: "{{ vcenter_datacenter }}"
+    folder: "{{ vcenter_folder }}"
+    vm_id: "{{ item.name }}"
+    vm_username: "aleksei"
+    vm_password: "{{ aleksei_user_pass }}"
+    vm_shell: /bin/bash
+    vm_shell_args: >-
+      -c "mkdir -p ~/.ssh && chmod 700 ~/.ssh &&
+      echo '{{ ssh_public_key }}' >> ~/.ssh/authorized_keys &&
+      chmod 600 ~/.ssh/authorized_keys"
+  loop: "{{ vms_to_provision }}"
+  delegate_to: localhost
+  when: ssh_public_key is defined
