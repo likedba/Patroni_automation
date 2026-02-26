@@ -9,7 +9,7 @@
     state: directory
     owner: root
     group: root
-    mode: "0700"
+    mode: "0755"
   become: true
 
 - name: Check if CA certificate exists
@@ -44,6 +44,15 @@
   when: not ca_cert.stat.exists
   changed_when: true
   become: true
+
+- name: Set CA certificate permissions
+  ansible.builtin.file:
+    path: "{{ infra_ca_dir }}/ca.crt"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: not ca_cert.stat.exists
 
 - name: Show CA certificate path
   ansible.builtin.debug:
