@@ -38,15 +38,24 @@
     mode: "0644"
   become: true
 
+- name: Read CA key from control node
+  ansible.builtin.slurp:
+    src: "{{ infra_ca_dir }}/ca.key"
+  register: ca_key_data
+  delegate_to: localhost
+  become: true
+  when: cert_ca_signed.rc != 0
+
 - name: Copy CA key temporarily for signing
   ansible.builtin.copy:
-    src: "{{ infra_ca_dir }}/ca.key"
+    content: "{{ ca_key_data.content | b64decode }}"
     dest: /tmp/infra-ca.key
     owner: root
     group: root
     mode: "0600"
   when: cert_ca_signed.rc != 0
   become: true
+  no_log: true
 
 - name: Generate server private key
   ansible.builtin.command:
