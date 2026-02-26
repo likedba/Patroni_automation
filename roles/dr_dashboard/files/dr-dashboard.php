@@ -416,7 +416,7 @@ CSS;
     return ajax(action).done(function(r){
       $('#drd-log').text(fmt(r));
       if(action === 'drd_media_upload' && r && r.ok && r.url){
-        $('#drd-preview').attr('src', r.url + '&t=' + Date.now()).show();
+        $('#drd-preview').attr('src', r.url + '?t=' + Date.now()).show();
         $('#drd-preview-placeholder').hide();
         $('#drd-preview-meta').text('URL: ' + r.url + ' | Path: ' + (r.path || '—'));
       }
