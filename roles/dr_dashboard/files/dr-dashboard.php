@@ -308,7 +308,7 @@ CSS;
   }
 
   private static function inline_js(): string {
-    return <<<JS
+    return <<<'JS'
 (function($){
   function badge($el, ok, text){
     $el.removeClass('text-bg-secondary text-bg-success text-bg-danger');
