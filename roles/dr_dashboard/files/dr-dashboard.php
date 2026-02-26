@@ -208,9 +208,9 @@ CSS;
       </div>
 
       <div class="row g-3 mb-3">
-        <div class="col-lg-7 d-flex">
-          <div class="card shadow-sm w-100">
-            <div class="card-body d-flex flex-column">
+        <div class="col-lg-7">
+          <div class="card shadow-sm">
+            <div class="card-body">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="fw-semibold">Actions</div>
                 <span id="drd-loading" class="text-muted drd-small" style="display:none;">Working&hellip;</span>
@@ -222,9 +222,9 @@ CSS;
                 <button id="drd-btn-refresh" class="btn btn-outline-secondary">Refresh status</button>
               </div>
 
-              <div class="mt-3 flex-grow-1 d-flex flex-column">
+              <div class="mt-3">
                 <div class="text-muted drd-small mb-1">Last response</div>
-                <pre id="drd-log" class="bg-light border rounded p-3 mb-0 drd-small flex-grow-1" style="min-height:140px; overflow-y:auto; white-space:pre-wrap;">&mdash;</pre>
+                <pre id="drd-log" class="bg-light border rounded p-3 mb-0 drd-small" style="height:420px; overflow-y:auto; white-space:pre-wrap;">&mdash;</pre>
               </div>
             </div>
           </div>

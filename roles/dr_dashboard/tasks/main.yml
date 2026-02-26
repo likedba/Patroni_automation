@@ -39,9 +39,8 @@
   changed_when: true
   become: true
 
-# ── 3. Clean up duplicate pages and Sample Page ───────────────
-#   Also renames old "DR Dashboard" pages to "HA Dashboard"
-- name: Clean up duplicate pages, rename DR to HA, remove Sample Page
+# ── 3. Clean up: keep one HA Dashboard, delete everything else ──
+- name: Clean up pages — keep one HA Dashboard as homepage, delete rest
   ansible.builtin.shell: |
     wp eval --allow-root --path=/var/www/html '
     $pages = get_posts(array(
@@ -51,38 +50,30 @@
       "orderby"      => "ID",
       "order"        => "ASC"
     ));
-    $keep = array();
+    $ha_id = 0;
     $deleted = 0;
     foreach ($pages as $p) {
       $t = trim($p->post_title);
-      if ($t === "Sample Page") {
+      if (($t === "DR Dashboard" || $t === "HA Dashboard") && $ha_id === 0) {
+        wp_update_post(array("ID" => $p->ID, "post_title" => "HA Dashboard", "post_content" => "[dr_dashboard]"));
+        $ha_id = $p->ID;
+      } elseif ($t === "DR Dashboard" || $t === "HA Dashboard" || $t === "Sample Page" || $t === "Patroni Automation") {
         wp_delete_post($p->ID, true);
         $deleted++;
-      } elseif ($t === "DR Dashboard" || $t === "HA Dashboard") {
-        if (!isset($keep["HA Dashboard"])) {
-          wp_update_post(array("ID" => $p->ID, "post_title" => "HA Dashboard"));
-          $keep["HA Dashboard"] = $p->ID;
-        } else {
-          wp_delete_post($p->ID, true);
-          $deleted++;
-        }
-      } elseif ($t === "Patroni Automation") {
-        if (!isset($keep[$t])) {
-          $keep[$t] = $p->ID;
-        } else {
-          wp_delete_post($p->ID, true);
-          $deleted++;
-        }
       }
     }
-    echo $deleted > 0 ? "cleaned:$deleted" : "ok";
+    if ($ha_id > 0) {
+      update_option("show_on_front", "page");
+      update_option("page_on_front", $ha_id);
+    }
+    echo $deleted > 0 ? "cleaned:$deleted,home=$ha_id" : "ok,home=$ha_id";
     '
   register: page_cleanup
   run_once: true
   changed_when: "'cleaned' in page_cleanup.stdout"
   become: true
 
-# ── 4. Create dashboard page if missing ────────────────────────
+# ── 4. Create HA Dashboard page if none existed ────────────────
 - name: Check if HA Dashboard page exists via PHP
   ansible.builtin.shell: |
     wp eval --allow-root --path=/var/www/html '
@@ -117,8 +108,16 @@
   changed_when: true
   become: true
 
-- name: Show HA Dashboard page URL
-  ansible.builtin.debug:
-    msg: "HA Dashboard available at: {{ wp_site_url }}/?page_id={{ drd_page_created.stdout | default(drd_page_check.stdout) | trim }}"
-  run_once: true
+- name: Set HA Dashboard as homepage
+  ansible.builtin.shell: |
+    wp option update show_on_front 'page' --allow-root --path=/var/www/html
+    wp option update page_on_front '{{ drd_page_created.stdout | default(drd_page_check.stdout) | trim }}' --allow-root --path=/var/www/html
   when: (drd_page_created.stdout | default(drd_page_check.stdout) | default('')) | trim | length > 0
+  run_once: true
+  changed_when: true
+  become: true
+
+- name: Show HA Dashboard URL
+  ansible.builtin.debug:
+    msg: "HA Dashboard set as homepage: {{ wp_site_url }}/"
+  run_once: true
