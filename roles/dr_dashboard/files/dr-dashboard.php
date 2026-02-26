@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: DR Dashboard
- * Description: Demo HA/DR dashboard for WordPress: frontend/backend identification, DB write/read test (Patroni), Media upload test (NFS), Patroni primary/roles, event log.
+ * Plugin Name: HA Dashboard
+ * Description: Demo HA dashboard for WordPress: frontend/backend identification, DB write/read test (Patroni), Media upload test (NFS), Patroni primary/roles, event log.
  * Version: 1.0.0
- * Author: DR Demo
+ * Author: HA Demo
  */
 
 if (!defined('ABSPATH')) exit;
@@ -138,7 +138,7 @@ CSS;
     <div class="container py-4">
       <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
         <div>
-          <h2 class="mb-1">DR / HA Demo Dashboard</h2>
+          <h2 class="mb-1">HA Demo Dashboard</h2>
           <div class="text-muted drd-small">
             Visual checks: Frontend nginx &rarr; Backend WP/nginx &rarr; DB (Patroni) &rarr; Media uploads (NFS)
           </div>
@@ -208,9 +208,9 @@ CSS;
       </div>
 
       <div class="row g-3 mb-3">
-        <div class="col-lg-7">
-          <div class="card shadow-sm">
-            <div class="card-body">
+        <div class="col-lg-7 d-flex">
+          <div class="card shadow-sm w-100">
+            <div class="card-body d-flex flex-column">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="fw-semibold">Actions</div>
                 <span id="drd-loading" class="text-muted drd-small" style="display:none;">Working&hellip;</span>
@@ -222,9 +222,9 @@ CSS;
                 <button id="drd-btn-refresh" class="btn btn-outline-secondary">Refresh status</button>
               </div>
 
-              <div class="mt-3">
+              <div class="mt-3 flex-grow-1 d-flex flex-column">
                 <div class="text-muted drd-small mb-1">Last response</div>
-                <pre id="drd-log" class="bg-light border rounded p-3 mb-0 drd-small" style="min-height:140px; max-height:300px; overflow-y:auto; white-space:pre-wrap;">&mdash;</pre>
+                <pre id="drd-log" class="bg-light border rounded p-3 mb-0 drd-small flex-grow-1" style="min-height:140px; overflow-y:auto; white-space:pre-wrap;">&mdash;</pre>
               </div>
             </div>
           </div>
@@ -609,7 +609,7 @@ JS;
     imagefilledrectangle($im, 0, 0, $w, $h, $bg);
     imagefilledrectangle($im, 0, 0, $w, 14, $accent);
 
-    imagestring($im, 5, 24, 40, "DR DASHBOARD - MEDIA UPLOAD TEST", $fg);
+    imagestring($im, 5, 24, 40, "HA DASHBOARD - MEDIA UPLOAD TEST", $fg);
     imagestring($im, 4, 24, 100, $text, $fg);
     imagestring($im, 3, 24, 160, "If this image still loads after failover: NFS/uploads + nginx path are OK.", $fg);
 

@@ -1,5 +1,5 @@
 ---
-# ── DR Dashboard WordPress plugin deployment ───────────────────
+# ── HA Dashboard WordPress plugin deployment ───────────────────
 # Deploys the plugin to all backends, activates once (shared DB)
 
 # ── 1. Copy plugin files ──────────────────────────────────────
@@ -22,7 +22,7 @@
   become: true
 
 # ── 2. Activate plugin (once — shared Patroni DB) ─────────────
-- name: Check if DR Dashboard plugin is active
+- name: Check if HA Dashboard plugin is active
   ansible.builtin.command:
     cmd: wp plugin is-active dr-dashboard --allow-root --path=/var/www/html
   register: drd_active
@@ -31,7 +31,7 @@
   run_once: true
   become: true
 
-- name: Activate DR Dashboard plugin
+- name: Activate HA Dashboard plugin
   ansible.builtin.command:
     cmd: wp plugin activate dr-dashboard --allow-root --path=/var/www/html
   when: drd_active.rc != 0
@@ -40,86 +40,75 @@
   become: true
 
 # ── 3. Clean up duplicate pages and Sample Page ───────────────
-- name: Delete Sample Page
+#   Also renames old "DR Dashboard" pages to "HA Dashboard"
+- name: Clean up duplicate pages, rename DR to HA, remove Sample Page
   ansible.builtin.shell: |
-    ID=$(wp post list --allow-root --path=/var/www/html \
-      --post_type=page --fields=ID,post_title --format=csv | \
-      grep ",Sample Page$" | cut -d',' -f1)
-    if [ -n "$ID" ]; then
-      for id in $ID; do
-        wp post delete "$id" --force --allow-root --path=/var/www/html
-      done
-      echo "deleted"
-    else
-      echo "none"
-    fi
-  register: sample_cleanup
+    wp eval --allow-root --path=/var/www/html '
+    $pages = get_posts(array(
+      "post_type"    => "page",
+      "post_status"  => "any",
+      "numberposts"  => -1,
+      "orderby"      => "ID",
+      "order"        => "ASC"
+    ));
+    $keep = array();
+    $deleted = 0;
+    foreach ($pages as $p) {
+      $t = trim($p->post_title);
+      if ($t === "Sample Page") {
+        wp_delete_post($p->ID, true);
+        $deleted++;
+      } elseif ($t === "DR Dashboard" || $t === "HA Dashboard") {
+        if (!isset($keep["HA Dashboard"])) {
+          wp_update_post(array("ID" => $p->ID, "post_title" => "HA Dashboard"));
+          $keep["HA Dashboard"] = $p->ID;
+        } else {
+          wp_delete_post($p->ID, true);
+          $deleted++;
+        }
+      } elseif ($t === "Patroni Automation") {
+        if (!isset($keep[$t])) {
+          $keep[$t] = $p->ID;
+        } else {
+          wp_delete_post($p->ID, true);
+          $deleted++;
+        }
+      }
+    }
+    echo $deleted > 0 ? "cleaned:$deleted" : "ok";
+    '
+  register: page_cleanup
   run_once: true
-  changed_when: "'deleted' in sample_cleanup.stdout"
-  become: true
-
-- name: Remove duplicate DR Dashboard pages (keep oldest)
-  ansible.builtin.shell: |
-    IDS=$(wp post list --allow-root --path=/var/www/html \
-      --post_type=page --post_status=publish \
-      --fields=ID,post_title --format=csv | \
-      grep ",DR Dashboard$" | cut -d',' -f1)
-    COUNT=$(echo "$IDS" | grep -c '[0-9]' || true)
-    if [ "$COUNT" -gt 1 ]; then
-      KEEP=$(echo "$IDS" | head -1)
-      echo "$IDS" | tail -n +2 | while read id; do
-        wp post delete "$id" --force --allow-root --path=/var/www/html
-      done
-      echo "cleaned, kept=$KEEP"
-    else
-      echo "ok"
-    fi
-  register: drd_cleanup
-  run_once: true
-  changed_when: "'cleaned' in drd_cleanup.stdout"
-  become: true
-
-- name: Remove duplicate Patroni Automation pages (keep oldest)
-  ansible.builtin.shell: |
-    IDS=$(wp post list --allow-root --path=/var/www/html \
-      --post_type=page --post_status=publish \
-      --fields=ID,post_title --format=csv | \
-      grep ",Patroni Automation$" | cut -d',' -f1)
-    COUNT=$(echo "$IDS" | grep -c '[0-9]' || true)
-    if [ "$COUNT" -gt 1 ]; then
-      KEEP=$(echo "$IDS" | head -1)
-      echo "$IDS" | tail -n +2 | while read id; do
-        wp post delete "$id" --force --allow-root --path=/var/www/html
-      done
-      echo "cleaned, kept=$KEEP"
-    else
-      echo "ok"
-    fi
-  register: pa_cleanup
-  run_once: true
-  changed_when: "'cleaned' in pa_cleanup.stdout"
+  changed_when: "'cleaned' in page_cleanup.stdout"
   become: true
 
 # ── 4. Create dashboard page if missing ────────────────────────
-- name: Check if DR Dashboard page exists
+- name: Check if HA Dashboard page exists via PHP
   ansible.builtin.shell: |
-    wp post list --allow-root --path=/var/www/html \
-      --post_type=page --post_status=publish \
-      --fields=ID,post_title --format=csv | \
-      grep ",DR Dashboard$" | head -1 | cut -d',' -f1
+    wp eval --allow-root --path=/var/www/html '
+    $pages = get_posts(array(
+      "post_type"   => "page",
+      "post_status" => "publish",
+      "numberposts" => 1,
+      "orderby"     => "ID",
+      "order"       => "ASC",
+      "title"       => "HA Dashboard"
+    ));
+    echo !empty($pages) ? $pages[0]->ID : "";
+    '
   register: drd_page_check
   run_once: true
   failed_when: false
   changed_when: false
   become: true
 
-- name: Create DR Dashboard page
+- name: Create HA Dashboard page
   ansible.builtin.command:
     cmd: >
       wp post create
       --allow-root --path=/var/www/html
       --post_type=page --post_status=publish
-      --post_title="DR Dashboard"
+      --post_title="HA Dashboard"
       --post_content="[dr_dashboard]"
       --porcelain
   register: drd_page_created
@@ -128,8 +117,8 @@
   changed_when: true
   become: true
 
-- name: Show DR Dashboard page URL
+- name: Show HA Dashboard page URL
   ansible.builtin.debug:
-    msg: "DR Dashboard page available at: {{ wp_site_url }}/?page_id={{ drd_page_created.stdout | default(drd_page_check.stdout) | trim }}"
+    msg: "HA Dashboard available at: {{ wp_site_url }}/?page_id={{ drd_page_created.stdout | default(drd_page_check.stdout) | trim }}"
   run_once: true
   when: (drd_page_created.stdout | default(drd_page_check.stdout) | default('')) | trim | length > 0
