@@ -39,7 +39,68 @@
   changed_when: true
   become: true
 
-# ── 3. Create dashboard page with shortcode ────────────────────
+# ── 3. Clean up duplicate pages and Sample Page ───────────────
+- name: Delete Sample Page
+  ansible.builtin.shell: |
+    ID=$(wp post list --allow-root --path=/var/www/html \
+      --post_type=page --fields=ID,post_title --format=csv | \
+      grep ",Sample Page$" | cut -d',' -f1)
+    if [ -n "$ID" ]; then
+      for id in $ID; do
+        wp post delete "$id" --force --allow-root --path=/var/www/html
+      done
+      echo "deleted"
+    else
+      echo "none"
+    fi
+  register: sample_cleanup
+  run_once: true
+  changed_when: "'deleted' in sample_cleanup.stdout"
+  become: true
+
+- name: Remove duplicate DR Dashboard pages (keep oldest)
+  ansible.builtin.shell: |
+    IDS=$(wp post list --allow-root --path=/var/www/html \
+      --post_type=page --post_status=publish \
+      --fields=ID,post_title --format=csv | \
+      grep ",DR Dashboard$" | cut -d',' -f1)
+    COUNT=$(echo "$IDS" | grep -c '[0-9]' || true)
+    if [ "$COUNT" -gt 1 ]; then
+      KEEP=$(echo "$IDS" | head -1)
+      echo "$IDS" | tail -n +2 | while read id; do
+        wp post delete "$id" --force --allow-root --path=/var/www/html
+      done
+      echo "cleaned, kept=$KEEP"
+    else
+      echo "ok"
+    fi
+  register: drd_cleanup
+  run_once: true
+  changed_when: "'cleaned' in drd_cleanup.stdout"
+  become: true
+
+- name: Remove duplicate Patroni Automation pages (keep oldest)
+  ansible.builtin.shell: |
+    IDS=$(wp post list --allow-root --path=/var/www/html \
+      --post_type=page --post_status=publish \
+      --fields=ID,post_title --format=csv | \
+      grep ",Patroni Automation$" | cut -d',' -f1)
+    COUNT=$(echo "$IDS" | grep -c '[0-9]' || true)
+    if [ "$COUNT" -gt 1 ]; then
+      KEEP=$(echo "$IDS" | head -1)
+      echo "$IDS" | tail -n +2 | while read id; do
+        wp post delete "$id" --force --allow-root --path=/var/www/html
+      done
+      echo "cleaned, kept=$KEEP"
+    else
+      echo "ok"
+    fi
+  register: pa_cleanup
+  run_once: true
+  changed_when: "'cleaned' in pa_cleanup.stdout"
+  become: true
+
+# ── 4. Create dashboard page if missing ────────────────────────
 - name: Check if DR Dashboard page exists
   ansible.builtin.shell: |
     wp post list --allow-root --path=/var/www/html \

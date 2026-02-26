@@ -224,7 +224,7 @@ CSS;
 
               <div class="mt-3">
                 <div class="text-muted drd-small mb-1">Last response</div>
-                <pre id="drd-log" class="bg-light border rounded p-3 mb-0 drd-small" style="min-height:140px; white-space:pre-wrap;">&mdash;</pre>
+                <pre id="drd-log" class="bg-light border rounded p-3 mb-0 drd-small" style="min-height:140px; max-height:300px; overflow-y:auto; white-space:pre-wrap;">&mdash;</pre>
               </div>
             </div>
           </div>

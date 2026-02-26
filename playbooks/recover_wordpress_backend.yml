@@ -67,7 +67,28 @@
       include_role:
         name: wordpress_backend
 
-# ── 4. Deploy zabbix-agent2 ─────────────────────────────────
+# ── 4. Deploy DR Dashboard plugin ──────────────────────────
+- name: Deploy DR Dashboard plugin on {{ target_node }}
+  hosts: "{{ target_node }}"
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Deploy DR Dashboard
+      include_role:
+        name: dr_dashboard
+
+# ── 6. Deploy zabbix-agent2 ─────────────────────────────────
 - name: Deploy zabbix-agent2 on {{ target_node }}
   hosts: "{{ target_node }}"
   gather_facts: false
@@ -88,7 +109,7 @@
       include_role:
         name: zabbix_agent2
 
-# ── 5. Deploy Docker + Filebeat ──────────────────────────────
+# ── 7. Deploy Docker + Filebeat ──────────────────────────────
 - name: Deploy Docker and Filebeat on {{ target_node }}
   hosts: "{{ target_node }}"
   gather_facts: false
