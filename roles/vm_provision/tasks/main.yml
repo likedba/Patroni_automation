@@ -74,3 +74,23 @@
   loop: "{{ vms_to_provision }}"
   delegate_to: localhost
   when: ssh_public_key is defined
+
+- name: Stop and disable unattended-upgrades via VMware Tools
+  community.vmware.vmware_vm_shell:
+    hostname: "{{ vcenter_hostname }}"
+    username: "{{ vcenter_username }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: "{{ vcenter_validate_certs }}"
+    datacenter: "{{ vcenter_datacenter }}"
+    folder: "{{ vcenter_folder }}"
+    vm_id: "{{ item.name }}"
+    vm_username: "aleksei"
+    vm_password: "{{ aleksei_user_pass }}"
+    vm_shell: /bin/bash
+    vm_shell_args: >-
+      -c "echo '{{ aleksei_user_pass }}' | sudo -S systemctl stop unattended-upgrades &&
+      sudo systemctl disable unattended-upgrades &&
+      sudo apt-get remove -y unattended-upgrades &&
+      while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done"
+  loop: "{{ vms_to_provision }}"
+  delegate_to: localhost
