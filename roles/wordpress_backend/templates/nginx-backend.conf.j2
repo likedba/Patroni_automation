@@ -5,6 +5,8 @@ server {
     root /var/www/html;
     index index.php index.html;
 
+    add_header X-Backend-Host $hostname always;
+
     access_log /var/log/nginx/wordpress_access.log;
     error_log  /var/log/nginx/wordpress_error.log;
 

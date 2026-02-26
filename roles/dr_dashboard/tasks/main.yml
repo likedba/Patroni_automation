@@ -1,0 +1,74 @@
+---
+# ── DR Dashboard WordPress plugin deployment ───────────────────
+# Deploys the plugin to all backends, activates once (shared DB)
+
+# ── 1. Copy plugin files ──────────────────────────────────────
+- name: Create dr-dashboard plugin directory
+  ansible.builtin.file:
+    path: /var/www/html/wp-content/plugins/dr-dashboard
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+  become: true
+
+- name: Deploy dr-dashboard.php plugin file
+  ansible.builtin.copy:
+    src: dr-dashboard.php
+    dest: /var/www/html/wp-content/plugins/dr-dashboard/dr-dashboard.php
+    owner: www-data
+    group: www-data
+    mode: "0644"
+  become: true
+
+# ── 2. Activate plugin (once — shared Patroni DB) ─────────────
+- name: Check if DR Dashboard plugin is active
+  ansible.builtin.command:
+    cmd: wp plugin is-active dr-dashboard --allow-root --path=/var/www/html
+  register: drd_active
+  failed_when: false
+  changed_when: false
+  run_once: true
+  become: true
+
+- name: Activate DR Dashboard plugin
+  ansible.builtin.command:
+    cmd: wp plugin activate dr-dashboard --allow-root --path=/var/www/html
+  when: drd_active.rc != 0
+  run_once: true
+  changed_when: true
+  become: true
+
+# ── 3. Create dashboard page with shortcode ────────────────────
+- name: Check if DR Dashboard page exists
+  ansible.builtin.shell: |
+    wp post list --allow-root --path=/var/www/html \
+      --post_type=page --post_status=publish \
+      --fields=ID,post_title --format=csv | \
+      grep ",DR Dashboard$" | head -1 | cut -d',' -f1
+  register: drd_page_check
+  run_once: true
+  failed_when: false
+  changed_when: false
+  become: true
+
+- name: Create DR Dashboard page
+  ansible.builtin.command:
+    cmd: >
+      wp post create
+      --allow-root --path=/var/www/html
+      --post_type=page --post_status=publish
+      --post_title="DR Dashboard"
+      --post_content="[dr_dashboard]"
+      --porcelain
+  register: drd_page_created
+  when: drd_page_check.stdout | trim | length == 0
+  run_once: true
+  changed_when: true
+  become: true
+
+- name: Show DR Dashboard page URL
+  ansible.builtin.debug:
+    msg: "DR Dashboard page available at: {{ wp_site_url }}/?page_id={{ drd_page_created.stdout | default(drd_page_check.stdout) | trim }}"
+  run_once: true
+  when: (drd_page_created.stdout | default(drd_page_check.stdout) | default('')) | trim | length > 0

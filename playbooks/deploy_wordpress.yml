@@ -6,6 +6,7 @@
 # NFS only:         ansible-playbook playbooks/deploy_wordpress.yml --tags nfs
 # Backends only:    ansible-playbook playbooks/deploy_wordpress.yml --tags backends
 # Frontend only:    ansible-playbook playbooks/deploy_wordpress.yml --tags frontend
+# DR Dashboard:     ansible-playbook playbooks/deploy_wordpress.yml --tags dr_dashboard
 # ─────────────────────────────────────────────────────────────
 
 - name: Ensure WordPress passwords exist in Vault
@@ -83,6 +84,30 @@
     - name: Configure nginx frontend
       include_role:
         name: nginx_frontend
+
+# ─────────────────────────────────────────────────────────────
+# DR Dashboard plugin deployment
+# ─────────────────────────────────────────────────────────────
+- name: Deploy DR Dashboard plugin
+  hosts: wordpress_backends
+  gather_facts: false
+  become: true
+  tags: [dr_dashboard]
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Deploy DR Dashboard
+      include_role:
+        name: dr_dashboard
 
 # ─────────────────────────────────────────────────────────────
 # VERIFY: smoke test from control node
