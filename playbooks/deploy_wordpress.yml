@@ -74,6 +74,12 @@
       include_vars:
         file: "{{ playbook_dir }}/../vars.yml"
 
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+
     - name: Generate infrastructure CA
       include_role:
         name: infra_ca
