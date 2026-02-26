@@ -22,6 +22,8 @@
 - name: Add email media to Admin user
   community.zabbix.zabbix_user:
     username: "Admin"
+    usrgrps:
+      - "Zabbix administrators"
     user_medias:
       - mediatype: "Yandex Email"
         sendto:
