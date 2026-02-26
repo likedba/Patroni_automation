@@ -1,0 +1,38 @@
+---
+# ── 1. Create Yandex SMTP email media type ─────────────────
+- name: Create Yandex SMTP email media type
+  community.zabbix.zabbix_mediatype:
+    name: "Yandex Email"
+    type: email
+    smtp_server: "smtp.yandex.ru"
+    smtp_server_port: 465
+    smtp_email: "{{ smtp_email }}"
+    smtp_helo: "yandex.ru"
+    smtp_security: SSL/TLS
+    smtp_authentication: true
+    username: "{{ smtp_email }}"
+    password: "{{ smtp_password }}"
+    smtp_verify_host: false
+    smtp_verify_peer: false
+    message_format: html
+    status: enabled
+    state: present
+
+# ── 2. Add email media to Admin user ──────────────────────
+- name: Add email media to Admin user
+  community.zabbix.zabbix_user:
+    username: "Admin"
+    user_medias:
+      - mediatype: "Yandex Email"
+        sendto:
+          - "{{ alert_recipient_email }}"
+        period: "1-7,00:00-24:00"
+        severity:
+          not_classified: true
+          information: true
+          warning: true
+          average: true
+          high: true
+          disaster: true
+        active: true
+    state: present

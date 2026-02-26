@@ -1,0 +1,12 @@
+---
+# ── Zabbix Alerts: email notifications + macro overrides ──────
+# Runs on hosts: zabbix_api (httpapi connection)
+
+- name: Configure email media type and user media
+  ansible.builtin.include_tasks: email_setup.yml
+
+- name: Override host-level macros for custom thresholds
+  ansible.builtin.include_tasks: host_macros.yml
+
+- name: Create alert action (send email on trigger)
+  ansible.builtin.include_tasks: alert_action.yml

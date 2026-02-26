@@ -119,6 +119,11 @@ grafana_db_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=grafana
 zbx_monitor_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zbx_monitor_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
 zabbix_admin_pass: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=zabbix_admin_pass secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
 
+# Email SMTP for Zabbix alerts (Yandex)
+smtp_email: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=smtp_email secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
+smtp_password: "{{ lookup('ansible.builtin.pipe', 'vault kv get -field=smtp_password secret/patroni_dpl/' ~ project_name ~ '/') | trim }}"
+alert_recipient_email: "a.varnavski@yandex.ru"
+
 # =========================
 # Backup (pg_probackup on vmubuntu-5)
 # =========================
@@ -161,6 +166,10 @@ zabbix_hosts:
         type: secret
       - macro: "{$PG.DATABASE}"
         value: "postgres"
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
+      - macro: "{$PG.CONN_TOTAL_PCT.MAX.WARN}"
+        value: "80"
   - name: vmpatronidb-2
     ip: "192.168.1.136"
     groups: ["Linux servers", "Patroni Cluster"]
@@ -173,6 +182,10 @@ zabbix_hosts:
         type: secret
       - macro: "{$PG.DATABASE}"
         value: "postgres"
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
+      - macro: "{$PG.CONN_TOTAL_PCT.MAX.WARN}"
+        value: "80"
   - name: vmpatronidb-3
     ip: "192.168.1.137"
     groups: ["Linux servers", "Patroni Cluster"]
@@ -185,14 +198,24 @@ zabbix_hosts:
         type: secret
       - macro: "{$PG.DATABASE}"
         value: "postgres"
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
+      - macro: "{$PG.CONN_TOTAL_PCT.MAX.WARN}"
+        value: "80"
   - name: vmubuntu-1
     ip: "192.168.1.141"
     groups: ["Linux servers", "Web Frontend"]
     templates: ["Linux by Zabbix agent", "Nginx by Zabbix agent"]
+    macros:
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
   - name: vmubuntu-2
     ip: "192.168.1.142"
     groups: ["Linux servers"]
     templates: ["Linux by Zabbix agent"]
+    macros:
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
   - name: vmubuntu-3
     ip: "192.168.1.143"
     groups: ["Linux servers", "WordPress Backends"]
@@ -206,6 +229,8 @@ zabbix_hosts:
         value: "8080"
       - macro: "{$PHP_FPM.STATUS.PAGE}"
         value: "php-fpm-status"
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
   - name: vmubuntu-4
     ip: "192.168.1.144"
     groups: ["Linux servers", "WordPress Backends"]
@@ -219,18 +244,29 @@ zabbix_hosts:
         value: "8080"
       - macro: "{$PHP_FPM.STATUS.PAGE}"
         value: "php-fpm-status"
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
   - name: vmubuntu-5
     ip: "192.168.1.145"
     groups: ["Linux servers", "NFS Servers", "Backup Servers"]
     templates: ["Linux by Zabbix agent"]
+    macros:
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
   - name: vmubuntu-6
     ip: "192.168.1.146"
     groups: ["Linux servers", "DNS"]
     templates: ["Linux by Zabbix agent"]
+    macros:
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
   - name: vmubuntu-7
     ip: "192.168.1.147"
     groups: ["Linux servers", "ELK Stack"]
     templates: ["Linux by Zabbix agent"]
+    macros:
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
   - name: vmubuntu-8
     ip: "192.168.1.148"
     groups: ["Linux servers", "Monitoring Stack"]
@@ -243,3 +279,7 @@ zabbix_hosts:
         type: secret
       - macro: "{$PG.DATABASE}"
         value: "postgres"
+      - macro: "{$VFS.FS.PUSED.MAX.WARN}"
+        value: "85"
+      - macro: "{$PG.CONN_TOTAL_PCT.MAX.WARN}"
+        value: "80"

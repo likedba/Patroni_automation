@@ -1,0 +1,3 @@
+---
+zabbix_alerts_disk_warn_pct: 85
+zabbix_alerts_pg_conn_warn_pct: 80

@@ -14,6 +14,7 @@
 # Grafana only:       ansible-playbook playbooks/deploy_monitoring.yml --tags grafana
 # Agent2 only:        ansible-playbook playbooks/deploy_monitoring.yml --tags agent2
 # Register only:      ansible-playbook playbooks/deploy_monitoring.yml --tags register
+# Alerts only:        ansible-playbook playbooks/deploy_monitoring.yml --tags alerts
 # ─────────────────────────────────────────────────────────────
 
 - name: Ensure monitoring passwords exist in Vault
@@ -123,3 +124,22 @@
     - name: Register hosts in Zabbix
       include_role:
         name: zabbix_register
+
+# ── Phase 7: Configure Zabbix alerts (triggers + email) ──────
+- name: Configure Zabbix alerts and email notifications
+  hosts: zabbix_api
+  gather_facts: false
+  tags: [alerts]
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Set Zabbix API password
+      set_fact:
+        ansible_httpapi_pass: "{{ zabbix_admin_pass }}"
+      no_log: true
+  tasks:
+    - name: Configure Zabbix alerts
+      include_role:
+        name: zabbix_alerts

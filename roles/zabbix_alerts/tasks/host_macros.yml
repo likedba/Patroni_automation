@@ -1,0 +1,23 @@
+---
+# ── Override host-level macros for custom thresholds ────────
+# This re-registers hosts with updated macros via zabbix_register pattern.
+# Macros are defined in vars.yml zabbix_hosts list — this task ensures
+# they are applied.
+
+- name: Update host macros (disk + PG thresholds)
+  community.zabbix.zabbix_host:
+    host_name: "{{ item.name }}"
+    host_groups: "{{ item.groups }}"
+    link_templates: "{{ item.templates }}"
+    interfaces:
+      - type: agent
+        main: 1
+        useip: 1
+        ip: "{{ item.ip }}"
+        port: "10050"
+    macros: "{{ item.macros | default(omit) }}"
+    status: enabled
+    state: present
+  loop: "{{ zabbix_hosts }}"
+  loop_control:
+    label: "{{ item.name }}"

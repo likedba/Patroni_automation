@@ -1,0 +1,43 @@
+---
+# ── Create trigger action: send email on Warning+ severity ──
+- name: Create email notification action for triggers
+  community.zabbix.zabbix_action:
+    name: "Send email on trigger"
+    event_source: trigger
+    state: present
+    status: enabled
+    esc_period: "5m"
+    conditions:
+      - type: trigger_severity
+        operator: ">="
+        value: "Warning"
+    operations:
+      - type: send_message
+        subject: "[{TRIGGER.STATUS}] {TRIGGER.NAME}"
+        message: |
+          Host: {HOST.NAME}
+          Trigger: {TRIGGER.NAME}
+          Status: {TRIGGER.STATUS}
+          Severity: {TRIGGER.SEVERITY}
+          Time: {EVENT.DATE} {EVENT.TIME}
+
+          Item values:
+          {ITEM.NAME1}: {ITEM.VALUE1}
+          {ITEM.NAME2}: {ITEM.VALUE2}
+
+          Event ID: {EVENT.ID}
+        media_type: "Yandex Email"
+        send_to_users:
+          - "Admin"
+    recovery_operations:
+      - type: send_message
+        subject: "[RESOLVED] {TRIGGER.NAME}"
+        message: |
+          Host: {HOST.NAME}
+          Trigger: {TRIGGER.NAME}
+          Status: {TRIGGER.STATUS}
+          Severity: {TRIGGER.SEVERITY}
+          Resolved at: {EVENT.RECOVERY.DATE} {EVENT.RECOVERY.TIME}
+        media_type: "Yandex Email"
+        send_to_users:
+          - "Admin"
