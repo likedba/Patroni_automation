@@ -14,7 +14,7 @@
     operations:
       - type: send_message
         subject: "[{TRIGGER.STATUS}] {TRIGGER.NAME}"
-        message: |
+        op_message: |
           Host: {HOST.NAME}
           Trigger: {TRIGGER.NAME}
           Status: {TRIGGER.STATUS}
@@ -32,7 +32,7 @@
     recovery_operations:
       - type: send_message
         subject: "[RESOLVED] {TRIGGER.NAME}"
-        message: |
+        op_message: |
           Host: {HOST.NAME}
           Trigger: {TRIGGER.NAME}
           Status: {TRIGGER.STATUS}
