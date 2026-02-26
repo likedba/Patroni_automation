@@ -9,7 +9,7 @@
     update_cache: true
   become: true
 
-# ── 2. Self-signed SSL certificate ──────────────────────────
+# ── 2. CA-signed SSL certificate (with SAN) ───────────────────
 - name: Create SSL directory
   ansible.builtin.file:
     path: /etc/nginx/ssl
@@ -19,20 +19,87 @@
     mode: "0700"
   become: true
 
-- name: Check if SSL certificate already exists
-  ansible.builtin.stat:
-    path: /etc/nginx/ssl/wordpress-front.crt
-  register: ssl_cert
+- name: Check if certificate is already CA-signed
+  ansible.builtin.shell:
+    cmd: >
+      openssl x509 -in /etc/nginx/ssl/wordpress-front.crt
+      -issuer -noout 2>/dev/null | grep -q "Infra Local CA"
+  register: cert_ca_signed
+  failed_when: false
+  changed_when: false
+  become: true
 
-- name: Generate self-signed SSL certificate
+- name: Copy CA certificate from control node
+  ansible.builtin.copy:
+    src: "{{ infra_ca_dir }}/ca.crt"
+    dest: /etc/nginx/ssl/ca.crt
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Copy CA key temporarily for signing
+  ansible.builtin.copy:
+    src: "{{ infra_ca_dir }}/ca.key"
+    dest: /tmp/infra-ca.key
+    owner: root
+    group: root
+    mode: "0600"
+  when: cert_ca_signed.rc != 0
+  become: true
+
+- name: Generate server private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out /etc/nginx/ssl/wordpress-front.key 4096
+  when: cert_ca_signed.rc != 0
+  changed_when: true
+  become: true
+
+- name: Deploy OpenSSL SAN configuration
+  ansible.builtin.template:
+    src: openssl-san.cnf.j2
+    dest: /tmp/openssl-san.cnf
+    mode: "0644"
+  when: cert_ca_signed.rc != 0
+  become: true
+
+- name: Generate certificate signing request
   ansible.builtin.command:
     cmd: >
-      openssl req -x509 -nodes -newkey rsa:4096 -days 3650
-      -keyout /etc/nginx/ssl/wordpress-front.key
-      -out /etc/nginx/ssl/wordpress-front.crt
-      -subj "/C=FI/L=Helsinki/O=infra/OU=wordpress/CN={{ inventory_hostname }}.{{ domain }}"
-  when: not ssl_cert.stat.exists
+      openssl req -new
+      -key /etc/nginx/ssl/wordpress-front.key
+      -out /tmp/wordpress-front.csr
+      -config /tmp/openssl-san.cnf
+  when: cert_ca_signed.rc != 0
   changed_when: true
+  become: true
+
+- name: Sign certificate with infrastructure CA
+  ansible.builtin.command:
+    cmd: >
+      openssl x509 -req
+      -in /tmp/wordpress-front.csr
+      -CA /etc/nginx/ssl/ca.crt
+      -CAkey /tmp/infra-ca.key
+      -CAcreateserial
+      -out /etc/nginx/ssl/wordpress-front.crt
+      -days 3650 -sha256
+      -extensions v3_req
+      -extfile /tmp/openssl-san.cnf
+  when: cert_ca_signed.rc != 0
+  changed_when: true
+  become: true
+  notify: restart nginx
+
+- name: Remove temporary signing files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/infra-ca.key
+    - /tmp/wordpress-front.csr
+    - /tmp/openssl-san.cnf
+    - /etc/nginx/ssl/ca.srl
   become: true
 
 - name: Set SSL key permissions

@@ -1,0 +1,50 @@
+---
+# ── Generate internal CA for infrastructure SSL ──────────────
+# Runs on localhost (Ansible control node).
+# Creates CA key + cert in {{ infra_ca_dir }} if not present.
+
+- name: Create infra CA directory
+  ansible.builtin.file:
+    path: "{{ infra_ca_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  become: true
+
+- name: Check if CA certificate exists
+  ansible.builtin.stat:
+    path: "{{ infra_ca_dir }}/ca.crt"
+  register: ca_cert
+
+- name: Generate CA private key
+  ansible.builtin.command:
+    cmd: openssl genrsa -out {{ infra_ca_dir }}/ca.key 4096
+  when: not ca_cert.stat.exists
+  changed_when: true
+  become: true
+
+- name: Set CA key permissions
+  ansible.builtin.file:
+    path: "{{ infra_ca_dir }}/ca.key"
+    owner: root
+    group: root
+    mode: "0600"
+  when: not ca_cert.stat.exists
+  become: true
+
+- name: Generate CA certificate
+  ansible.builtin.command:
+    cmd: >
+      openssl req -x509 -new -nodes
+      -key {{ infra_ca_dir }}/ca.key
+      -sha256 -days 3650
+      -out {{ infra_ca_dir }}/ca.crt
+      -subj "/C=FI/L=Helsinki/O=infra/CN={{ infra_ca_cn }}"
+  when: not ca_cert.stat.exists
+  changed_when: true
+  become: true
+
+- name: Show CA certificate path
+  ansible.builtin.debug:
+    msg: "Infrastructure CA: {{ infra_ca_dir }}/ca.crt"

@@ -1,0 +1,22 @@
+[req]
+distinguished_name = req_dn
+req_extensions     = v3_req
+prompt             = no
+
+[req_dn]
+C  = FI
+L  = Helsinki
+O  = infra
+OU = wordpress
+CN = {{ inventory_hostname }}.{{ domain }}
+
+[v3_req]
+basicConstraints    = CA:FALSE
+keyUsage            = digitalSignature, keyEncipherment
+extendedKeyUsage    = serverAuth
+subjectAltName      = @alt_names
+
+[alt_names]
+DNS.1 = {{ inventory_hostname }}.{{ domain }}
+DNS.2 = {{ inventory_hostname }}
+IP.1  = {{ ansible_host }}

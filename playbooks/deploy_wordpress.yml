@@ -64,6 +64,20 @@
       include_role:
         name: wordpress_backend
 
+- name: Generate infrastructure CA on control node
+  hosts: localhost
+  gather_facts: false
+  become: true
+  tags: [frontend]
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Generate infrastructure CA
+      include_role:
+        name: infra_ca
+
 - name: Deploy nginx frontend (reverse proxy + SSL)
   hosts: nginx_frontend
   gather_facts: false
@@ -142,3 +156,19 @@
     - name: Show HTTPS result
       ansible.builtin.debug:
         msg: "HTTPS status: {{ https_check.status }}, X-Frontend: {{ https_check.x_frontend | default('not set') }}"
+
+    - name: Copy CA certificate to project directory
+      ansible.builtin.copy:
+        src: /opt/infra-ca/ca.crt
+        dest: "{{ playbook_dir }}/../infra-ca.crt"
+        mode: "0644"
+      become: false
+
+    - name: Show CA certificate import instructions
+      ansible.builtin.debug:
+        msg: >-
+          To trust HTTPS in your browser, import infra-ca.crt into Windows:
+          1) SCP from control node: scp vmubuntu-6:/opt/infra-ca/ca.crt infra-ca.crt
+          2) Double-click → Install Certificate → Local Machine →
+          Trusted Root Certification Authorities → Finish.
+          Or PowerShell (Admin): Import-Certificate -FilePath infra-ca.crt -CertStoreLocation Cert:\LocalMachine\Root

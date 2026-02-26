@@ -3,6 +3,7 @@
 # Project
 # =========================
 domain: "infra.local"
+infra_ca_dir: /opt/infra-ca
 
 # =========================
 # Cluster settings

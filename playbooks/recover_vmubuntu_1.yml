@@ -21,7 +21,21 @@
       vars:
         vms_to_provision: "{{ infra_vms | selectattr('name', 'equalto', 'vmubuntu-1') | list }}"
 
-# ── 2. Deploy nginx frontend ────────────────────────────────
+# ── 2. Generate infrastructure CA ──────────────────────────
+- name: Generate infrastructure CA on control node
+  hosts: localhost
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+
+    - name: Generate infrastructure CA
+      include_role:
+        name: infra_ca
+
+# ── 3. Deploy nginx frontend ────────────────────────────────
 - name: Deploy nginx frontend on vmubuntu-1
   hosts: nginx_frontend
   gather_facts: false
@@ -48,7 +62,7 @@
       include_role:
         name: nginx_frontend
 
-# ── 3. Deploy zabbix-agent2 ─────────────────────────────────
+# ── 4. Deploy zabbix-agent2 ─────────────────────────────────
 - name: Deploy zabbix-agent2 on vmubuntu-1
   hosts: nginx_frontend
   gather_facts: false
@@ -69,7 +83,7 @@
       include_role:
         name: zabbix_agent2
 
-# ── 4. Deploy Docker + Filebeat ──────────────────────────────
+# ── 5. Deploy Docker + Filebeat ──────────────────────────────
 - name: Deploy Docker and Filebeat on vmubuntu-1
   hosts: nginx_frontend
   gather_facts: false

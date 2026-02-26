@@ -1,0 +1,3 @@
+---
+infra_ca_dir: /opt/infra-ca
+infra_ca_cn: "Infra Local CA"
