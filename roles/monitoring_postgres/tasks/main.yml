@@ -32,23 +32,47 @@
   become: true
 
 # ── 2a. Install pg_probackup-18 (for remote backup agent) ──
+- name: Check if pg_probackup GPG key exists
+  ansible.builtin.stat:
+    path: /etc/apt/trusted.gpg.d/pg_probackup.gpg
+  register: probackup_key
+
+- name: Download and dearmor pg_probackup GPG key on control node (force IPv4)
+  ansible.builtin.shell:
+    cmd: >-
+      curl -4 -fsSL https://repo.postgrespro.ru/pg_probackup/keys/GPG-KEY-PG-PROBACKUP
+      | gpg --batch --yes --dearmor -o /tmp/pg_probackup_dearmored.gpg
+  delegate_to: localhost
+  become: false
+  when: not probackup_key.stat.exists
+  changed_when: true
+
+- name: Copy dearmored pg_probackup GPG key to target node
+  ansible.builtin.copy:
+    src: /tmp/pg_probackup_dearmored.gpg
+    dest: /etc/apt/trusted.gpg.d/pg_probackup.gpg
+    owner: root
+    group: root
+    mode: "0644"
+  when: not probackup_key.stat.exists
+  become: true
+
+- name: Remove old ASCII-armored key if present
+  ansible.builtin.file:
+    path: /etc/apt/trusted.gpg.d/pg_probackup.asc
+    state: absent
+  become: true
+
 - name: Check if pg_probackup repository is configured
   ansible.builtin.stat:
     path: /etc/apt/sources.list.d/pg_probackup.list
   register: probackup_repo
 
-- name: Download pg_probackup GPG key
-  ansible.builtin.shell:
-    cmd: wget -qO - https://repo.postgrespro.ru/pg_probackup/keys/GPG-KEY-PG-PROBACKUP | tee /etc/apt/trusted.gpg.d/pg_probackup.asc
-  when: not probackup_repo.stat.exists
-  changed_when: true
-  become: true
-
 - name: Add pg_probackup repository
   ansible.builtin.shell:
     cmd: |
       . /etc/os-release
-      echo "deb [arch=amd64] https://repo.postgrespro.ru/pg_probackup/deb $VERSION_CODENAME main-$VERSION_CODENAME" > /etc/apt/sources.list.d/pg_probackup.list
+      echo "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/pg_probackup.gpg] https://repo.postgrespro.ru/pg_probackup/deb $VERSION_CODENAME main-$VERSION_CODENAME" > /etc/apt/sources.list.d/pg_probackup.list
   when: not probackup_repo.stat.exists
   changed_when: true
   become: true
