@@ -13,6 +13,14 @@
   become: true
   notify: restart docker
 
+- name: Prefer IPv4 over IPv6 in DNS resolution (gai.conf)
+  ansible.builtin.lineinfile:
+    path: /etc/gai.conf
+    line: "precedence ::ffff:0:0/96  100"
+    regexp: "^precedence ::ffff:0:0/96"
+    state: present
+  become: true
+
 # ── 1. Install prerequisites ──────────────────────────────────
 - name: Install Docker prerequisites
   ansible.builtin.apt:
