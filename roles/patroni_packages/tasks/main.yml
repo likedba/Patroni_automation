@@ -44,35 +44,13 @@
     path: /etc/apt/trusted.gpg.d/pg_probackup.gpg
   register: probackup_key
 
-- name: Check if pg_probackup GPG key is cached on control node (non-empty)
-  ansible.builtin.stat:
-    path: /tmp/pg_probackup_dearmored.gpg
-  delegate_to: localhost
-  become: false
-  register: probackup_key_cached
-  when: not probackup_key.stat.exists
-
-- name: Download and dearmor pg_probackup GPG key on control node (force IPv4)
+- name: Download and dearmor pg_probackup GPG key (force IPv4)
   ansible.builtin.shell:
     cmd: >-
       curl -4 -fsSL https://repo.postgrespro.ru/pg_probackup/keys/GPG-KEY-PG-PROBACKUP
-      | gpg --batch --yes --dearmor -o /tmp/pg_probackup_dearmored.gpg
-  delegate_to: localhost
-  become: false
-  when: >-
-    not probackup_key.stat.exists and
-    (not probackup_key_cached.stat.exists | default(false) or
-     probackup_key_cached.stat.size | default(0) == 0)
-  changed_when: true
-
-- name: Copy dearmored pg_probackup GPG key to target node
-  ansible.builtin.copy:
-    src: /tmp/pg_probackup_dearmored.gpg
-    dest: /etc/apt/trusted.gpg.d/pg_probackup.gpg
-    owner: root
-    group: root
-    mode: "0644"
+      | gpg --batch --yes --dearmor -o /etc/apt/trusted.gpg.d/pg_probackup.gpg
   when: not probackup_key.stat.exists
+  changed_when: true
   become: true
 
 - name: Remove old ASCII-armored key if present
