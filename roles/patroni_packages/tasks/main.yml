@@ -1,4 +1,14 @@
 ---
+# ── 0. Force apt to use IPv4 (IPv6 unreachable in this network) ─
+- name: Configure apt to use IPv4 only
+  ansible.builtin.copy:
+    content: 'Acquire::ForceIPv4 "true";'
+    dest: /etc/apt/apt.conf.d/99force-ipv4
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
 - name: Install postgresql-common
   ansible.builtin.apt:
     name: postgresql-common
