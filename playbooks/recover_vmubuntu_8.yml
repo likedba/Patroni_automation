@@ -126,7 +126,46 @@
       include_role:
         name: zabbix_register
 
-# ── 7. Deploy Docker + Filebeat ──────────────────────────────
+# ── 7. Restore backup server SSH access to recovered vmubuntu-8 ──
+- name: Restore pg_probackup SSH key on backup server for vmubuntu-8
+  hosts: backup
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load project variables
+      include_vars:
+        file: "{{ playbook_dir }}/../vars.yml"
+      become: false
+
+    - name: Set become password from vault
+      set_fact:
+        ansible_become_password: "{{ aleksei_user_pass }}"
+      become: false
+      no_log: true
+  tasks:
+    - name: Read postgres public key from backup server
+      ansible.builtin.slurp:
+        src: /var/lib/postgresql/.ssh/id_ed25519.pub
+      register: postgres_pubkey
+      become: true
+
+    - name: Deploy postgres SSH key to recovered vmubuntu-8
+      ansible.posix.authorized_key:
+        user: postgres
+        key: "{{ postgres_pubkey.content | b64decode }}"
+        state: present
+      delegate_to: vmubuntu-8
+      vars:
+        ansible_become_password: "{{ hostvars[inventory_hostname].ansible_become_password }}"
+      become: true
+
+    - name: Update known_hosts for vmubuntu-8 on backup server
+      ansible.builtin.shell: |
+        sudo -u postgres ssh-keyscan -H {{ monitoring_host_ip }} >> /var/lib/postgresql/.ssh/known_hosts
+      become: true
+      changed_when: true
+
+# ── 8. Deploy Docker + Filebeat ──────────────────────────────
 - name: Deploy Docker and Filebeat on vmubuntu-8
   hosts: monitoring
   gather_facts: false
