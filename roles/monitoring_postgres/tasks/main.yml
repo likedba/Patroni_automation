@@ -52,6 +52,7 @@
     cmd: >-
       curl -4 -fsSL https://repo.postgrespro.ru/pg_probackup/keys/GPG-KEY-PG-PROBACKUP
       | gpg --batch --yes --dearmor -o /tmp/pg_probackup_dearmored.gpg
+    creates: /tmp/pg_probackup_dearmored.gpg
   delegate_to: localhost
   become: false
   when: not probackup_key.stat.exists
