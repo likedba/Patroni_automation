@@ -76,11 +76,24 @@
     path: /var/lib/grafana/plugins/alexanderzobnin-zabbix-app
   register: zabbix_plugin
 
-- name: Install Grafana Zabbix plugin
-  ansible.builtin.command:
-    cmd: grafana-cli plugins install alexanderzobnin-zabbix-app
+- name: Download Grafana Zabbix plugin on control node (force IPv4)
+  ansible.builtin.shell:
+    cmd: >-
+      curl -4 -fsSL -L
+      https://grafana.com/api/plugins/alexanderzobnin-zabbix-app/versions/latest/download
+      -o /tmp/alexanderzobnin-zabbix-app.zip
+  delegate_to: localhost
+  become: false
   when: not zabbix_plugin.stat.exists
   changed_when: true
+
+- name: Extract Grafana Zabbix plugin to plugins directory
+  ansible.builtin.unarchive:
+    src: /tmp/alexanderzobnin-zabbix-app.zip
+    dest: /var/lib/grafana/plugins/
+    owner: grafana
+    group: grafana
+  when: not zabbix_plugin.stat.exists
   become: true
   notify: restart grafana-server
 
