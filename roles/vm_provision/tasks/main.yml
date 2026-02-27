@@ -106,3 +106,7 @@
       while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done"
   loop: "{{ vms_to_provision }}"
   delegate_to: localhost
+  register: unattended_result
+  retries: 5
+  delay: 20
+  until: unattended_result is not failed
