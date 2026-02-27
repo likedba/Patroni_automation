@@ -37,7 +37,7 @@
 - name: Download and install pg_probackup GPG key
   ansible.builtin.shell:
     cmd: >-
-      wget -qO - https://repo.postgrespro.ru/pg_probackup/keys/GPG-KEY-PG-PROBACKUP
+      curl -4 -fsSL https://repo.postgrespro.ru/pg_probackup/keys/GPG-KEY-PG-PROBACKUP
       | gpg --dearmor -o /etc/apt/trusted.gpg.d/pg_probackup.gpg
   when: not probackup_key.stat.exists
   changed_when: true
