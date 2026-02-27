@@ -21,8 +21,13 @@ define('SECURE_AUTH_SALT', 'f#lV %m[*+YNZ4A^mnrbkmkA6,/OI9e:l}p2:`j5JooX4t W4ZGx
 define('LOGGED_IN_SALT',   '8E)_|-nA+j8%oLj67];6-wl~$,/5q2Z?m-C4-J=d;{YA|ylXK<$+VD|pXR|mbV5V');
 define('NONCE_SALT',       'Ds>]-qsWT%hx-Nb;g49y&abBlq|Smkon|ftQ%U6F2<C1Rbv>06CiF]>q7-!}IN}N');
 
-define('WP_HOME',    '{{ wp_site_url }}');
-define('WP_SITEURL', '{{ wp_site_url }}');
+// Use the request Host to support both internal ({{ wp_frontend_ip }}:4433)
+// and external ({{ external_domain | default('') }}) access without redirect loops.
+$_wp_host = isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] !== ''
+    ? $_SERVER['HTTP_HOST']
+    : '{{ wp_frontend_ip }}:4433';
+define('WP_HOME',    'https://' . $_wp_host);
+define('WP_SITEURL', 'https://' . $_wp_host);
 
 define('WP_DEBUG', false);
 define('WP_DEBUG_LOG', false);

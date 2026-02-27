@@ -29,6 +29,36 @@
   changed_when: false
   become: true
 
+- name: Check if external domain is present in certificate SAN
+  ansible.builtin.shell:
+    cmd: >
+      openssl x509 -in /etc/nginx/ssl/wordpress-front.crt
+      -text -noout 2>/dev/null | grep -q "{{ external_domain }}"
+  register: cert_has_external_domain
+  failed_when: false
+  changed_when: false
+  become: true
+  when: external_domain | default('') | length > 0
+
+- name: Remove certificate to force regeneration if external domain missing from SAN
+  ansible.builtin.file:
+    path: /etc/nginx/ssl/wordpress-front.crt
+    state: absent
+  become: true
+  when:
+    - cert_ca_signed.rc == 0
+    - external_domain | default('') | length > 0
+    - cert_has_external_domain.rc != 0
+
+- name: Reset cert_ca_signed flag so regeneration tasks run after cert deletion
+  ansible.builtin.set_fact:
+    cert_ca_signed: {'rc': 1}
+  when:
+    - cert_ca_signed.rc == 0
+    - external_domain | default('') | length > 0
+    - cert_has_external_domain is defined
+    - cert_has_external_domain.rc != 0
+
 - name: Copy CA certificate from control node
   ansible.builtin.copy:
     src: "{{ infra_ca_dir }}/ca.crt"
